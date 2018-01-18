@@ -1,3 +1,41 @@
+CREATE TABLE summits (
+summit_id      int PRIMARY KEY,
+name        varchar(50),
+elevation   int,
+isolation   numeric(6,2),
+prominence  int,
+latitude    numeric(8,5),
+longitude  numeric(8,5),
+type        smallint,
+type_str    varchar(8),
+counties    varchar(50),
+states      varchar(50),
+state       char(2),
+quad        varchar(50)
+);
+
+CREATE TABLE images (
+summit_id   int,
+image_id    int PRIMARY KEY,
+url         varchar(50),
+filename    varchar(20)
+);
+
+ALTER TABLE images
+ADD CONSTRAINT images_summit_id_fkey
+FOREIGN KEY (summit_id)
+REFERENCES summits (summit_id)
+ON UPDATE CASCADE;
+
+UPDATE summits
+SET state = states
+WHERE LENGTH(states) = 2;
+
+UPDATE summits SET longitude = -longitude WHERE longitude > 0;
+
+SELECT COUNT(*) FROM summits WHERE state IS NULL;
+SELECT summit_id, longitude FROM summits WHERE longitude > 0;
+
 WITH imcnts AS (
 SELECT summit_id, COUNT(image_id) cnt
 FROM summits
@@ -13,49 +51,79 @@ GROUP BY m.type_str
 #to count #files in a folder, from Terminal:
 find . -type f | wc -l
 
-ALTER TABLE summits
-ADD PRIMARY KEY (summit_id);
-
-ALTER TABLE images
-ADD CONSTRAINT images_summit_id_fkey
-FOREIGN KEY (summit_id)
-REFERENCES summits (summit_id)
-ON UPDATE CASCADE;
-
-UPDATE summits
-SET longitude = -longitude
-WHERE longitude > 0;
-
-SELECT * FROM summits
-WHERE longitude > 0;
 
 ALTER TABLE summits
 ADD COLUMN counties varchar(50),
 ADD COLUMN state varchar(50);
 
 ALTER TABLE summits
-ALTER COLUMN type type smallint using type::smallint;
+ALTER COLUMN type TYPE smallint USING TYPE::smallint;
+
+ALTER TABLE images
+RENAME COLUMN filepath TO filename;
 
 ALTER TABLE summits
-RENAME COLUMN state to states;
+RENAME COLUMN longtitude TO longitude;
 
-ALTER TABLE summits
-RENAME COLUMN summit_state to state;
-
-SELECT COUNT(*) "# in summits" FROM summits;
-SELECT COUNT(DISTINCT summit_id) "#distinct summit_id in images" FROM images;
-SELECT COUNT(*) "# in images" FROM images;
+SELECT COUNT(*) "Total #summits in summits TABLE" FROM summits;
+SELECT COUNT(DISTINCT summit_id) "#Total #summits in images table" FROM images;
+SELECT COUNT(*) "Total #images in images table" FROM images;
 
 SELECT s.type_str, COUNT(s.summit_id) "#summits", COUNT(i.image_id) "#images"
 FROM images i INNER JOIN summits s ON i.summit_id=s.summit_id
 GROUP BY type_str;
 
-SELECT summit_id, name, type, type_str FROM summits
-WHERE
-    name LIKE '%Mountain%' AND type_str <> 'mountain' OR
-    name LIKE '%Mount%' AND name NOT LIKE '%Mountain%' AND type_str <> 'mount' OR
-    name LIKE '%Peak#' AND type_str <> 'peak'
-ORDER BY summit_id;
+UPDATE summits SET type=4, type_str='None';
+
+UPDATE summits SET type=1, type_str='mount'
+WHERE name LIKE '%Mount%' AND name NOT LIKE '%Mountain%' AND name NOT LIKE '%Mountaineer'
+    AND  ( name NOT LIKE '%Peak%'
+        OR name LIKE '%-North Peak%'
+        OR name LIKE '%-South Peak%'
+        OR name LIKE '%-East Peak%'
+        OR name LIKE '%-West Peak%'
+        OR name LIKE '%-Middle Peak%'
+        OR name LIKE '%-Southwest Peak%' );
+
+UPDATE summits SET type=2, type_str='mountain'
+WHERE name LIKE '%Mountain%' AND name NOT LIKE '%Mountaineer'
+AND  ( name NOT LIKE '%Peak%'
+    OR name LIKE '%-North Peak%'
+    OR name LIKE '%-South Peak%'
+    OR name LIKE '%-East Peak%'
+    OR name LIKE '%-West Peak%'
+    OR name LIKE '%-Middle Peak%'
+    OR name LIKE '%-Southwest Peak%' );
+
+UPDATE summits SET type=3, type_str='peak'
+WHERE name LIKE '%Peak%' AND name NOT LIKE '%Mount%'
+    AND name NOT LIKE '%-North Peak%'
+    AND name NOT LIKE '%-South Peak%'
+    AND name NOT LIKE '%-East Peak%'
+    AND name NOT LIKE '%-West Peak%'
+    AND name NOT LIKE '%-Middle Peak%'
+    AND name NOT LIKE '%-Southwest Peak%';
+
+UPDATE summits SET type=5, type_str='ambiguous' WHERE summit_id IN
+(
+SELECT summit_id FROM summits
+WHERE type = 4 AND (
+    name LIKE '%Mount%'  OR
+    name LIKE '%Peak%'
+                    )
+    AND name NOT LIKE '%-North Peak%'
+    AND name NOT LIKE '%-South Peak%'
+    AND name NOT LIKE '%-East Peak%'
+    AND name NOT LIKE '%-West Peak%'
+    AND name NOT LIKE '%-Middle Peak%'
+    AND name NOT LIKE '%-Southwest Peak%'
+);
+
+UPDATE summits SET type=3, type_str='peak'
+WHERE name LIKE '%Mountaineer Peak%';
+
+SELECT summit_id, name, type_str, type FROM summits
+WHERE type_str='ambiguous';
 
 SELECT COUNT(*) "num wrong Mount" FROM summits
 WHERE name LIKE '%Mount%' AND name NOT LIKE '%Mountain%' AND type_str <> 'mount';

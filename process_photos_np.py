@@ -87,76 +87,77 @@ def process_image(image):
 
     return image_cropped, image_padded
 
+if __name__ == "__main__":
+    #open cursor to summitsdb
+    if home == '/Users/edwardwhite': #MacBook
+        conn = psycopg2.connect(dbname='summitsdb', host='localhost')
 
-#open cursor to summitsdb
-if home == '/Users/edwardwhite': #MacBook
-    conn = psycopg2.connect(dbname='summitsdb', host='localhost')
+    elif home == '/home/ed': #Linux
+        with open(home +  '/.google/psql', 'r') as f:
+            p = f.readline().strip()
+        conn = psycopg2.connect(dbname='summitsdb', host='localhost', user='ed', password=p)
+        p=''
+    cur = conn.cursor()
 
-elif home == '/home/ed': #Linux
-    with open(home +  '/.google/psql', 'r') as f:
-        p = f.readline().strip()
-    conn = psycopg2.connect(dbname='summitsdb', host='localhost', user='ed', password=p)
-    p=''
-cur = conn.cursor()
+    #get data on images to process from summitsdb
+    query = '''
+    SELECT i.summit_id, i.image_id, i.filename, s.type, s.state
+    FROM images i INNER JOIN summits s ON i.summit_id=s.summit_id
+    ORDER BY i.image_id;
+    '''
+    doquery(cur, query, "select filenames")
+    db_data = cur.fetchall()
 
-#get data on images to process from summitsdb
-query = '''
-SELECT i.summit_id, i.image_id, i.filename, s.type, s.state
-FROM images i INNER JOIN summits s ON i.summit_id=s.summit_id
-ORDER BY i.image_id;
-'''
-doquery(cur, query, "select filenames")
-db_data = cur.fetchall()
+    images_cropped =[]
+    images_padded = []
+    labels_type = []
+    labels_state = []
+    errors = []
+    # rownum = 0
+    # row = (16669, 1, 'CA_0_16669_1.jpg', 0, 'CA')
+    for rownum, row in enumerate(db_data):
 
-images_cropped =[]
-images_padded = []
-labels_type = []
-labels_state = []
-errors = []
-# rownum = 0
-# row = (16669, 1, 'CA_0_16669_1.jpg', 0, 'CA')
-for rownum, row in enumerate(db_data):
+        if rownum % 100 == 0:
+            print("row# {}".format(rownum)) #to show progress
 
-    if rownum % 100 == 0:
-        print("row# {}".format(rownum)) #to show progress
+        summit_id, image_id, filename, type_, state = row
 
-    summit_id, image_id, filename, type_, state = row
-    try:
-        image = io.imread(images_folder + filename) #image is a numpy arry
-    except Exception as ex:
-        print("error reading summit_id {}, image_id {}".format(summit_id, image_id))
-        errors.append((summit_id, image_id, "read"))
+        try:
+            image = io.imread(images_folder + filename) #image is a numpy arry
+        except Exception as ex:
+            print("error reading summit_id {}, image_id {}".format(summit_id, image_id))
+            errors.append((summit_id, image_id, "read"))
 
-    if image.shape[0] < 20 or image.shape[1] < 20:
-        print("summit_id {}, image_id {}, image.shape ={})".format(summit_id, image_id, image.shape))
-        errors.append((summit_id, image_id, "size"))
+        if image.shape[0] < 20 or image.shape[1] < 20:
+            print("summit_id {}, image_id {}, image.shape ={})".format(summit_id, image_id, image.shape))
+            errors.append((summit_id, image_id, "size"))
 
-    image_cropped, image_padded = process_image(image)
-    images_cropped.append(image_cropped)
-    images_padded.append(image_padded)
+        image_cropped, image_padded = process_image(image)
+        images_cropped.append(image_cropped)
+        images_padded.append(image_padded)
 
-    labels_type.append(type_)
-    labels_state.append(state)
+        labels_type.append(type_)
+        labels_state.append(state)
 
-#convert lists to np.arrays
-images_cropped = np.array(images_cropped)
-images_padded = np.array(images_padded)
-labels_type = np.array(labels_type)
-labels_state = np.array(labels_state)
+    #convert lists to np.arrays
+    images_cropped = np.array(images_cropped)
+    images_padded = np.array(images_padded)
+    labels_type = np.array(labels_type)
+    labels_state = np.array(labels_state)
 
-#save processed features and labels to pickle files
-#, protocol=pickle.HIGHEST_PROTOCOL allows for files > 4GB
-with open(capstone_folder + "images_cropped.pkl", 'wb') as f:
-    pickle.dump(images_cropped, f, protocol=pickle.HIGHEST_PROTOCOL)
-with open(capstone_folder + "images_padded.pkl", 'wb') as f:
-    pickle.dump(images_padded, f, protocol=pickle.HIGHEST_PROTOCOL)
-with open(capstone_folder + "labels_type.pkl", 'wb') as f:
-    pickle.dump(labels_type, f, protocol=pickle.HIGHEST_PROTOCOL)
-with open(capstone_folder + "labels_state.pkl", 'wb') as f:
-    pickle.dump(labels_state, f, protocol=pickle.HIGHEST_PROTOCOL)
+    #save processed features and labels to pickle files
+    #, protocol=pickle.HIGHEST_PROTOCOL allows for files > 4GB
+    with open(capstone_folder + "images_cropped.pkl", 'wb') as f:
+        pickle.dump(images_cropped, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(capstone_folder + "images_padded.pkl", 'wb') as f:
+        pickle.dump(images_padded, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(capstone_folder + "labels_type.pkl", 'wb') as f:
+        pickle.dump(labels_type, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(capstone_folder + "labels_state.pkl", 'wb') as f:
+        pickle.dump(labels_state, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-if len(errors) > 0:
-    with open(capstone_folder + "still_errors.pkl", 'wb') as f:
-        pickle.dump(errors, f)
-else:
-    print("all images downloaded OK")
+    if len(errors) > 0:
+        with open(capstone_folder + "still_errors-new.pkl", 'wb') as f:
+            pickle.dump(errors, f)
+    else:
+        print("all images downloaded OK")
