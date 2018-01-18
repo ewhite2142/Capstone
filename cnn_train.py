@@ -7,12 +7,16 @@ from keras.utils import np_utils
 from keras import backend as K
 import tensorflow as tf
 import sys
+from sklearn.model_selection import train_test_split
+# from keras.preprocessing.image import ImageDataGenerator
 from my_libraries import *
 
 capstone_folder, images_folder = folders()
 
-def create_reverse_image(image):
-    return image[:,::-1]
+def create_reverse_image_horiz(image):
+    # processor = ImageDataGenerator()
+    return np.flip(image, axis=1) #flips horizontally
+
 
 def filter_data(images, labels, compare_type):
     if compare_type == "UT_vs_WA":
@@ -102,20 +106,44 @@ for image_squaring in ['cropped', 'padded']:
     #images.shape, labels.shape
 
     #shuffle data and split data into 80/20 train/test split
-    numrows = labels.shape[0]
-    indices = np.arange(numrows)
-    np.random.seed(1337)  # for reproducibility
-    np.random.shuffle(indices)
-    num_train_indices = int(numrows * .8) #80% to train set
-    X_train = images[indices[:num_train_indices]]
-    y_train = np_utils.to_categorical(labels[indices[:num_train_indices]])
-    X_test = images[indices[num_train_indices:]]
-    y_test = np_utils.to_categorical(labels[indices[num_train_indices:]])
-    #np.unique(y_train), np.unique(y_test)
+    X_train, X_test, y_trn, y_tst = train_test_split(images, labels, test_size=0.20, random_state=42)
+    # numrows = labels.shape[0]
+    # indices = np.arange(numrows)
+    # np.random.seed(1337)  # for reproducibility
+    # np.random.shuffle(indices)
+    # num_train_indices = int(numrows * .8) #80% to train set
+    # X_train = images[indices[:num_train_indices]]
+    # y_train = np_utils.to_categorical(labels[indices[:num_train_indices]])
+    # X_test = images[indices[num_train_indices:]]
+
+    #convert y to binary form and put in y_test
+    y_train = []
+    for row in y_trn:
+        if row == 0:
+            y_train.append([1, 0])
+        elif row == 1:
+            y_train.append([0, 1])
+        else:
+            print("Error: row in y_trn is not 0 or 1. row= {}".format(row))
+    y_train = np.array(y_train)
+
+    y_test = []
+    for row in y_tst:
+        if row == 0:
+            y_test.append([1, 0])
+        elif row == 1:
+            y_test.append([0, 1])
+        else:
+            print("Error: row in y is not 0 or 1. row= {}".format(row))
+    y_test = np.array(y_test)
+
+    # y_keras = tf.keras.utils.to_categorical(y)
+    # y_np = np_utils.to_categorical(y_test)
     #X_train.shape, y_train.shape, X_test.shape, y_test.shape
     #free up memory used by no longer needed images, labels lists
     images = None
     labels = None
+    y = None
 
     image_rows, image_cols = 100, 100 # Keras input image dimensions
     input_shape = (image_rows, image_cols, 3)
@@ -132,13 +160,15 @@ for image_squaring in ['cropped', 'padded']:
     print("done.\nNow fitting model using {} data.".format(image_squaring))
     model = fit_cnn(X_train, y_train, X_test, y_test, number_classes)
 
-    try:
-        print("Saving model using karis to hdf5...", end="")
-        tf.keras.models.save_model(model=model, filepath=capstone_folder + "model_" + image_squaring + "_" + compare_type + ".hdf5", overwrite=True, include_optimizer=True)
-        print("done!")
-    except Exception as ex:
-        print("Error trying to use tf.keras.models.save_model\n{}".format(ex))
+    #this gives an error
+    # try:
+    #     print("Saving model using karis to hdf5...", end="")
+    #     tf.keras.models.save_model(model=model, filepath=capstone_folder + "model_" + image_squaring + "_" + compare_type + ".hdf5", overwrite=True, include_optimizer=True)
+    #     print("done!")
+    # except Exception as ex:
+    #     print("Error trying to use tf.keras.models.save_model\n{}".format(ex))
 
+    #save model for future use
     try:
         print("Saving model to yaml & h5...", end="")
         fn = capstone_folder + "model_" + image_squaring + "_" + compare_type
