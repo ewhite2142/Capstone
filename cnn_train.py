@@ -12,77 +12,8 @@ from sklearn.model_selection import train_test_split
 # from keras.preprocessing.image import ImageDataGenerator
 from my_libraries import *
 
+np.RandomState = 1000 # for consistent results
 capstone_folder, images_folder = folders()
-
-def reverse_image_horiz(image):
-    # processor = ImageDataGenerator()
-    return np.flip(image, axis=1) #flips horizontally
-
-
-def balance_classes(X, y):
-    '''
-    INPUT
-    X: np array of features
-    y: np array of binary labels with y.shape[1] == #classes and with 0 or 1
-
-    OUTPUT:
-    X, y: np.arrays with 5000 rows
-    '''
-    # X = X_test
-    # y = y_test
-    uniques = np.unique(y)
-    num_classes = len(uniques)
-    for i, value in enumerate(uniques):
-        indices = np.where(y == value)
-        X_class[i] = X[indices]
-        y_class[i] = y[indices]
-        num_per_class[i] = len[indices]
-
-    for i, num in enumerate(num_per_class):
-        if num < 1250: # < 1250
-            print("Too few rows for class number {}\n*** TERMINATING PROGRAM ***".format(i))
-            sys.exit()
-
-        elif num > 5000: # > 5000
-        # downsample to 5000 rows
-            X_class[i], y_class[i] = resample([X_class[i], y_class[i]], replace = False, n_samples=5000)
-
-        elif num >= 2500: #2500 - 5000
-        #upsample with flipped images/features to 5000 rows
-        # num = 3500
-            num_to_upsample = 5000 - num
-            upsample_indices = np.random.choice(np.arange(num_to_upsample), size = num_to_upsample, replace=False)
-
-            upsample_X = X_class[i][upsample_indices]
-            upsample_y = y_class[i][upsample_indices]
-
-            for i in range(num_to_upsample):
-                upsample_X[i] = reverse_image_horiz(upsample_X[i])
-
-            X_class[i] = np.vstack(X_class[i], upsample_X)
-            y_class[i] = np.vstack(y_class[i], upsample_y)
-
-        else: #1250 - 2499
-            #first upsample without replacement to get to 2500
-            num_to_upsample = 2500 - num
-            X_class[i], y_class[i] = resample([X, y], replace=False, n_samples=num_to_generate)
-
-            #then generate 2500 flipped images to get 5000 total
-            num_to_upsample = 2500
-
-            upsample_X = X_class[i]
-            for i in np.arange(num_to_upsample):
-                upsample_X[i] = reverse_image_horiz(upsample_X[i])
-            upsample_y = y_class[i]
-
-            X_class[i] = np.vstack(X_class[i], upsample_X)
-            y_class[i] = np.vstack(y_class[i], upsample_y)
-
-    #recombine the separate classes
-    X = np.vstack((X_class[i] for in in range(num_classes)))
-    y = np.vstack((y_class[i] for i in range(num_classes)))
-
-    return X, y
 
 def filter_data(images, labels, compare_type):
     if compare_type == "UT_vs_WA":
@@ -167,8 +98,119 @@ def to_categorical_binary(y_not_categ):
     return np.array(y)
 
 
+def make_different_image(image):
+    # processor = ImageDataGenerator() #could consider this later
+    # return image #TESTING
+    return np.flip(image, axis=1) #flips horizontally
 
 
+def balance_classes(X, y, toSize):
+    '''
+    INPUT
+    X: np array of num_classes (calculated below) features
+    y: np array of binary labelsof num_classes = # unique values in y
+    toSize: int size resulting size of each class
+
+    OUTPUT:
+    X, y: np.arrays with 5000 rows
+    '''
+    X = images #TESTING
+    y = labels #TESTING
+    images.shape, labels.shape
+    # if 1 == 1:
+    #     print("balance_classes: STOPPING EARLY for testing.")
+    #     sys.exit() # TESTING
+    # X = np.arange(11, 18)
+    # y = np.array([0,1,2,0,0,0,1])
+    # toSize = 13
+    # y.shape, X.shape
+    # X
+    # y
+
+    uniques = np.unique(y)
+    num_classes = len(uniques)
+    num_per_class = np.zeros((num_classes), dtype=int)
+    X_class = []
+    y_class = []
+    # value = 0
+    for i, value in enumerate(uniques):
+        indices = np.where(y == value)[0]
+        X_class.append(X[indices]) #converts X_class into np array
+        y_class.append(np.full(toSize, value, dtype=int)) .reshape(toSize)#converts y_class into np array
+        num_per_class[i] += indices.size
+        # X_class[0].shape, y_class[0].shape
+        # X_class[1].shape, y_class[1].shape
+
+    for i, num in enumerate(num_per_class):
+        # i = 0
+        # i = 1
+        # num = num_per_class[i]
+        if num == toSize:
+            continue #already correct size, so no adjustment needed
+
+        elif num > toSize:
+        # downsample to 5000 rows
+            X_class[i] = resample(X_class[i], replace = False, n_samples=toSize, random_state=1)
+
+        else: # num < toSize
+            #upsize with replacement
+            #since cannot resize with replacement if n_samples > existing samples, repeat resampling several times to get to toSize
+            num_iters_upsample = int(toSize / num) - 1
+            num_addition_upsamples = toSize % num
+
+            for j in range(num_iters_upsample):
+                X_newsample, y_newsample = resample(X_class[i], y_class[i], replace = False, n_samples=num, random_state=j)
+
+                if j == 0:
+                    X_newsamples = np.copy(X_newsample)
+                else:
+                    X_newsamples = np.vstack((X_newsamples, X_newsample))
+
+            if num_addition_upsamples > 0:
+                X_newsample = resample(X_class[i], replace = False, n_samples=num_addition_upsamples, random_state=1)
+
+                if num_iters_upsample == 0:
+                    X_newsamples = np.copy(X_newsample)
+                else:
+                    X_newsamples = np.vstack((X_newsamples, X_newsample))
+
+                X_newsamples.shape
+                # X_newsamples = np.append(X_newsamples, X_newsample)
+
+
+            vfunc = np.vectorize(make_different_image) #np.vectorize maps function to np array
+
+            if num_per_class[i] < .5 * toSize:
+                #split X_newsamples in 2, and apply make_different_image to half of them
+                half_num_newsamples = int(len(X_newsamples) / 2)
+                X_newsamples_half1 = X_newsamples[:half_num_newsamples]
+                X_newsamples_half2 = X_newsamples[half_num_newsamples:]
+
+                X_newsamples_half1 = vfunc(X_newsamples_half1)
+                X_newsamples = np.append(X_newsamples_half1, X_newsamples_half2)
+
+            else: # num_per_class[i] >= .5 * toSize
+                #flip X_newsamples and before appending them to X_class[i]
+                X_newsamples = vfunc(X_newsamples)
+
+            #append new samples to existing ones
+            X_class[i] = np.vstack((X_class[i], X_newsamples))
+
+
+        print("X_class[{}].shape[0]={}, y_class[{}].size={} vs toSize={}".format(i, X_class[i].shape[0], i, y_class[i].size, toSize))
+        #X_class[i] and y_class[i] now should have toSize samples each
+    X_class_temp = X_class
+    y_class_temp = y_class
+
+    X_class = X_class_temp
+    y_class = y_class_temp
+
+    #recombine the separate classes
+    X = np.vstack((X_class[i] for i in range(num_classes)))
+    y = np.vstack((y_class[i] for i in range(num_classes))).reshape(toSize *  num_classes)
+    y_class[0].shape, y_class[1].shape
+    X.shape, y.shape
+    return X, y
 
 
 if __name__ == "__main__":
@@ -190,14 +232,19 @@ if __name__ == "__main__":
         images, labels = filter_data(images, labels, compare_type)
         #images.shape, labels.shape
 
+        temp_images = images
+        temp_labels = labels
+
+        images = temp_images
+        labels = temp_labels
         #balance classes--do this before converting to binary
-        images, labels = balance_classes(images, labels)
+        images, labels = balance_classes(images, labels, toSize=5000)
 
         #convert labels to binary form
         labels = to_categorical_binary(labels)
 
         #shuffle data and split data into 80/20 train/test split
-        X_train, X_test, y_test, y_test = train_test_split(images, labels, test_size=0.20, random_state=42)
+        X_train, X_test, y_train, y_test = train_test_split(images, labels, test_size=0.20, random_state=42)
         # numrows = labels.shape[0]
         # indices = np.arange(numrows)
         # np.random.seed(1337)  # for reproducibility
