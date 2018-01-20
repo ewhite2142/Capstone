@@ -3,37 +3,51 @@ from keras.models import Sequential
 from sklearn.utils import resample
 from keras.layers import Dense, Dropout, Activation, Flatten
 from keras.layers import Conv2D, MaxPooling2D
-from keras.utils import np_utils
 from keras import backend as K
-import tensorflow as tf
 import sys
 import pickle as pickle
 from sklearn.model_selection import train_test_split
-# from keras.preprocessing.image import ImageDataGenerator
+# import tensorflow as tf
 from my_libraries import *
 
 np.RandomState = 1000 # for consistent results
 capstone_folder, images_folder = folders()
 
-def filter_data(images, labels, compare_type):
-    if compare_type == "UT_vs_WA":
-        ### see if cnn can label whether summit is in UT or WA ###
-        #gather images & labels from labels of UT and WA: label UT=0, WA=1
-        images_list = []
-        labels_list = []
-        for image, state in zip(images, labels):
-            if state == 'UT':
-                images_list.append(image)
-                labels_list.append(0)
-            elif state == 'WA':
-                images_list.append(image)
-                labels_list.append(1)
+def filter_data(images, labels, *choices):
+    '''
+    INPUT
+    images: np array of images
+    labels: np array consisting of 2 state labels (2 letter abbrev) for images
+    *choices: items in labels to filter
 
-        return np.array(images_list), np.array(labels_list)
+    OUTPUT
+    np array: filtered images
+    np array: filtered labels of choices, but converted to integers starting with 0 for first of choices, 1 for second, etc.
+    compare_type: string showing each choice selected separated by "_"
 
-    else:
-        print("Program not written for compare_type={}.\n**** EXITING PROGRAM ****".format(compare_type))
-        sys.exit()
+    filter images and lables per *choices, e.g.:
+    images = [1, 2, 1, 3, 1]
+    labels = ['CO', 'WA', 'CO', 'NM', 'CO']
+    filter_data(images, labels, 'CO', 'NM')
+    returns [1, 1, 3, 1], [0, 0, 1, 0,], 'CO_NM'
+    '''
+    images_list = []
+    labels_list = []
+    compare_type = ""
+    choice_int = -1
+    for choice in choices:
+        compare_type += choice + "_"
+    compare_type = compare_type[:-1] #drop last "_" on compare_type
+
+    for image, label in zip(images, labels):
+            choice_int = -1
+            for choice in choices:
+                choice_int += 1
+                if label == choice:
+                    images_list.append(image)
+                    labels_list.append(choice_int)
+
+    return np.array(images_list), np.array(labels_list), compare_type
 
 
 def fit_cnn(X_train, y_train, X_test, y_test, num_classes):
@@ -93,15 +107,16 @@ def to_categorical_binary(y_not_categ):
         elif value == 1:
             y.append([0, 1])
         else:
-            print("Error: row in y_not_categ is not 0 or 1. row= {}".format(row))
+            print("Error: values in y_not_categ is not 0 or 1. row= {}".format(value))
 
     return np.array(y)
 
 
-def make_different_image(image):
-    # processor = ImageDataGenerator() #could consider this later
-    # return image #TESTING
-    return np.flip(image, axis=1) #flips horizontally
+def make_different_images(images):
+    #flip image horizontally and return it
+    f = lambda x: x[::-1]
+    f1 = lambda x: np.apply_along_axis(f, 1, x)
+    return np.array([f1(x) for x in images])
 
 
 def balance_classes(X, y, toSize):
@@ -114,13 +129,13 @@ def balance_classes(X, y, toSize):
     OUTPUT:
     X, y: np.arrays with 5000 rows
     '''
-    X = images #TESTING
-    y = labels #TESTING
-    images.shape, labels.shape
+    # X = images #TESTING
+    # y = labels #TESTING
+    # images.shape, labels.shape
     # if 1 == 1:
     #     print("balance_classes: STOPPING EARLY for testing.")
     #     sys.exit() # TESTING
-    # X = np.arange(11, 18)
+    # X = np.arange(21).reshape(7,1,1,3)
     # y = np.array([0,1,2,0,0,0,1])
     # toSize = 13
     # y.shape, X.shape
@@ -133,17 +148,16 @@ def balance_classes(X, y, toSize):
     X_class = []
     y_class = []
     # value = 0
+    # i = 0
     for i, value in enumerate(uniques):
         indices = np.where(y == value)[0]
         X_class.append(X[indices]) #converts X_class into np array
-        y_class.append(np.full(toSize, value, dtype=int)) .reshape(toSize)#converts y_class into np array
+        y_class.append(np.full(toSize, value, dtype=int)) #converts y_class into np array
         num_per_class[i] += indices.size
-        # X_class[0].shape, y_class[0].shape
-        # X_class[1].shape, y_class[1].shape
-
+    X_class[0].shape, y_class[0].shape
+    X_class[1].shape, y_class[1].shape
     for i, num in enumerate(num_per_class):
-        # i = 0
-        # i = 1
+        # i = 0   i = 1
         # num = num_per_class[i]
         if num == toSize:
             continue #already correct size, so no adjustment needed
@@ -158,13 +172,16 @@ def balance_classes(X, y, toSize):
             num_iters_upsample = int(toSize / num) - 1
             num_addition_upsamples = toSize % num
 
+            # j=0  j=1
             for j in range(num_iters_upsample):
-                X_newsample, y_newsample = resample(X_class[i], y_class[i], replace = False, n_samples=num, random_state=j)
+                X_newsample = resample(X_class[i], replace = False, n_samples=num, random_state=j)
 
                 if j == 0:
                     X_newsamples = np.copy(X_newsample)
                 else:
+                    X_newsample, X_newsamples
                     X_newsamples = np.vstack((X_newsamples, X_newsample))
+            # X_newsamples.shape
 
             if num_addition_upsamples > 0:
                 X_newsample = resample(X_class[i], replace = False, n_samples=num_addition_upsamples, random_state=1)
@@ -174,24 +191,25 @@ def balance_classes(X, y, toSize):
                 else:
                     X_newsamples = np.vstack((X_newsamples, X_newsample))
 
-                X_newsamples.shape
+                # X_newsample.shape, X_newsamples.shape
                 # X_newsamples = np.append(X_newsamples, X_newsample)
-
-
-            vfunc = np.vectorize(make_different_image) #np.vectorize maps function to np array
+            # X_newsamples.shape
 
             if num_per_class[i] < .5 * toSize:
                 #split X_newsamples in 2, and apply make_different_image to half of them
                 half_num_newsamples = int(len(X_newsamples) / 2)
                 X_newsamples_half1 = X_newsamples[:half_num_newsamples]
                 X_newsamples_half2 = X_newsamples[half_num_newsamples:]
+                X_newsamples_half1.shape, X_newsamples_half2.shape
 
-                X_newsamples_half1 = vfunc(X_newsamples_half1)
-                X_newsamples = np.append(X_newsamples_half1, X_newsamples_half2)
+                X_newsamples_half1 = make_different_images(X_newsamples_half1)
+                np.vstack((X_new, X_newsamples_half2)).shape
+
+                X_newsamples = np.vstack((X_newsamples_half1, X_newsamples_half2))
 
             else: # num_per_class[i] >= .5 * toSize
                 #flip X_newsamples and before appending them to X_class[i]
-                X_newsamples = vfunc(X_newsamples)
+                X_newsamples = make_different_images(X_newsamples)
 
             #append new samples to existing ones
             X_class[i] = np.vstack((X_class[i], X_newsamples))
@@ -199,28 +217,28 @@ def balance_classes(X, y, toSize):
 
         print("X_class[{}].shape[0]={}, y_class[{}].size={} vs toSize={}".format(i, X_class[i].shape[0], i, y_class[i].size, toSize))
         #X_class[i] and y_class[i] now should have toSize samples each
-    X_class_temp = X_class
-    y_class_temp = y_class
-
-    X_class = X_class_temp
-    y_class = y_class_temp
+    # X_class_temp = X_class
+    # y_class_temp = y_class
+    #
+    # X_class = X_class_temp
+    # y_class = y_class_temp
 
     #recombine the separate classes
     X = np.vstack((X_class[i] for i in range(num_classes)))
     y = np.vstack((y_class[i] for i in range(num_classes))).reshape(toSize *  num_classes)
-    y_class[0].shape, y_class[1].shape
-    X.shape, y.shape
+    # y_class[0].shape, y_class[1].shape
+    # X.shape, y.shape
     return X, y
 
 
 if __name__ == "__main__":
-
+    state1 = "UT"
+    state2 = "WA"
     #image_squaring = 'cropped' #testing
     for image_squaring in ['cropped', 'padded']:
 
         #images_cropped and images_padded contain numpy arrays (squared by either cropping or padding), resized to 100x100 pixels and normalized) of all summit images ordered by image_id
         # labels contains numpy array of all states (two letter abbreviations) corresponding to and in same order as images
-        compare_type = "UT_vs_WA"
         print("Reading data...", end="")
         with open(capstone_folder + "images_" + image_squaring + ".pkl", 'rb') as f:
             images = pickle.load(f) #shape=(numrows, 100, 100, 3)
@@ -229,7 +247,7 @@ if __name__ == "__main__":
         print("finished.\nNow preparing data and model...", end="")
         #images.shape, labels.shape
         num_classes = 2 #UT vs WA, coded as 0 and 1
-        images, labels = filter_data(images, labels, compare_type)
+        images, labels, compare_type = filter_data(images, labels, state1, state2)
         #images.shape, labels.shape
 
         temp_images = images
