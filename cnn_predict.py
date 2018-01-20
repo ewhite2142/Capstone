@@ -29,7 +29,6 @@ def predict_state(image_id, state_actual):
     filename = images_folder + str(image_id) + ".jpg"
 
     #get actual label for image
-    states = ['UT', 'WA']
     if state_actual == 'UT':
         label_actual = 0
     elif state_actual == 'WA':
