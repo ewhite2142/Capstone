@@ -258,12 +258,12 @@ if __name__ == "__main__":
         #images_cropped and images_padded contain numpy arrays (squared by either cropping or padding), resized to 100x100 pixels and normalized) of all summit images ordered by image_id
         # labels contains numpy array of all states (two letter abbreviations) corresponding to and in same order as images
         print("Reading data...", end="")
+        with open(capstone_folder + "cnn_image_size.pkl", 'rb') as f:
+            cnn_image_size = pickle.load(f) # (length, width) of images
         with open(capstone_folder + "images_" + image_squaring + ".pkl", 'rb') as f:
-            images = pickle.load(f) #shape=(numrows, 100, 100, 3)
+            images = pickle.load(f) #shape=(numrows, cnn_image_size[0], cnn_image_size[1], 3)
         with open(capstone_folder + "labels_state.pkl", 'rb') as f:
             labels = pickle.load(f) #shape=(numrows)
-        with open(capstone_folder + "cnn_image_size.pkl", 'rb') as f:
-            cnn_image_size = pickle.load(f) # (lenght, width) of images
 
         print("done.\nNow preparing data and model...", end="")
         #images.shape, labels.shape
