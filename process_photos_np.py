@@ -44,7 +44,7 @@ def process_image(image):
 
     Process a single image for input into cnn_train.py or cnn_predict.py
     '''
-    image_rows, image_cols = 100, 100 # Keras input image dimensions--will resize to this
+    cnn_image_size = (100, 100) # Keras input image dimensions--will resize to this
 
     # image = np.array([np.arange(26250)]).reshape(150,175) #TESTING
 
@@ -75,11 +75,11 @@ def process_image(image):
         image_cropped = image[:,dif1:colsize-dif2]
         image_padded = np.vstack((np.zeros((dif1, colsize, 3)), image, np.zeros((dif2, colsize, 3))))
 
-    #reshape image to shape(image_rows, image_cols) for Keras/tensorflow
+    #reshape image to cnn_image_size for Keras/tensorflow
     #mode='constant': Pads with a constant value
     #clip=True: Clips the range of output values to the range of input values, i.e. will maintain range 0-255
-    image_cropped = resize(image_cropped, (image_rows, image_cols), clip=True, mode='constant')
-    image_padded = resize(image_padded, (image_rows, image_cols), clip=True, mode='constant')
+    image_cropped = resize(image_cropped, cnn_image_size, clip=True, mode='constant')
+    image_padded = resize(image_padded, cnn_image_size, clip=True, mode='constant')
 
     #normalize RGB data to range 0 to 1
     image_cropped = image_cropped.astype('float32') / 255
@@ -155,6 +155,9 @@ if __name__ == "__main__":
         pickle.dump(labels_type, f, protocol=pickle.HIGHEST_PROTOCOL)
     with open(capstone_folder + "labels_state.pkl", 'wb') as f:
         pickle.dump(labels_state, f, protocol=pickle.HIGHEST_PROTOCOL)
+    with open(capstone_folder + "cnn_image_size.pkl", 'wb') as f:
+        pickle.dump(cnn_image_size, f, protocol=pickle.HIGHEST_PROTOCOL)
+
 
     if len(errors) > 0:
         with open(capstone_folder + "still_errors-new.pkl", 'wb') as f:
