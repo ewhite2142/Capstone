@@ -21,17 +21,21 @@ url         varchar(50),
 filename    varchar(20)
 );
 
+CREATE TABLE model_fit_results (
+compare_type            varchar(20),
+numrows_in_each_class   smallint,
+num_epochs              smallint,
+test_accuracy           numeric(5, 2),
+PRIMARY KEY (compare_type, numrows_in_each_class, num_epochs)
+);
+
 ALTER TABLE images
 ADD CONSTRAINT images_summit_id_fkey
 FOREIGN KEY (summit_id)
 REFERENCES summits (summit_id)
 ON UPDATE CASCADE;
 
-UPDATE summits
-SET state = states
-WHERE LENGTH(states) = 2;
-
-UPDATE summits SET longitude = -longitude WHERE longitude > 0;
+SELECT * FROM model_fit_results;
 
 SELECT COUNT(*) FROM summits WHERE state IS NULL;
 SELECT summit_id, longitude FROM summits WHERE longitude > 0;
@@ -73,6 +77,7 @@ SELECT s.type_str, COUNT(s.summit_id) "#summits", COUNT(i.image_id) "#images"
 FROM images i INNER JOIN summits s ON i.summit_id=s.summit_id
 GROUP BY type_str;
 
+###### set summit type, type_str ################################
 UPDATE summits SET type=4, type_str='None';
 
 UPDATE summits SET type=1, type_str='mount'
@@ -124,6 +129,8 @@ WHERE name LIKE '%Mountaineer Peak%';
 
 SELECT summit_id, name, type_str, type FROM summits
 WHERE type_str='ambiguous';
+####################################################
+
 
 SELECT COUNT(*) "num wrong Mount" FROM summits
 WHERE name LIKE '%Mount%' AND name NOT LIKE '%Mountain%' AND type_str <> 'mount';
@@ -142,7 +149,7 @@ SELECT COUNT(*) FROM summits
 WHERE state IS NULL OR counties IS NULL;
 
 #UBUNTO to take ownership of a file
-sudo chown ed:ed filename
+sudo chown -R ed:ed filename
 
 
 #MAC: to save table to to_csv
@@ -163,14 +170,14 @@ COPY summits FROM '/home/ed/dsi/Capstone/summits.csv' WITH CSV HEADER DELIMITER 
 ALTER TABLE images ADD FOREIGN KEY(summit_id) REFERENCES summits(summit_id);
 
 #export entire DB to file. In terminal on Ubuntu:
-pg_dump -U ed -O summitsdb > summitsdb.sql;
+pg_dump -U ed -O summitsdb > 'summitsdb.sql';
 
 #import entire DB from file:
 In psql:
 DROP DATABASE IF EXISTS summitsdb;
 CREATE DATABASE summitsdb;
 In terminal on mac:
-psql -U edwardwhite summitsdb < summitsdb.sql;
+psql -U edwardwhite summitsdb < 'summitsdb.sql';
 
 -- \copy summits FROM 'path' DELIMITER ',' csv
 COPY summits FROM 'completepath' WITH HEADER, DELIMITER ',';
@@ -213,11 +220,12 @@ DELETE FROM summits WHERE summit_id IN
 # #summits & images for Mount, Mountains, & Peaks by type
 SELECT type_str, COUNT(DISTINCT s.summit_id) "#summits", COUNT(i.image_id) "#images"
 FROM summits s RIGHT OUTER JOIN images i ON s.summit_id=i.summit_id
-GROUP BY type_str, type ORDER BY type;
+GROUP BY type_str, type
+ORDER BY type;
 
 SELECT state, COUNT(DISTINCT s.summit_id) "#summits", COUNT(i.image_id) "#images"
 FROM summits s RIGHT OUTER JOIN images i ON s.summit_id=i.summit_id
-GROUP BY s.state ORDER BY "#summits" DESC, "#images" DESC;
+GROUP BY s.state ORDER BY "#images" DESC, "#summits" DESC;
 
 SELECT COUNT(DISTINCT s.summit_id) "#summits-Appalachia", COUNT(image_id) AS "#images-Appalachia"
 FROM summits s RIGHT OUTER JOIN images i on s.summit_id = i.summit_id
