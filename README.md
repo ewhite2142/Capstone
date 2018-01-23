@@ -1,5 +1,7 @@
 ## **Classifying Mountains with Photos and Neural Networks**
 
+*By Ed White*
+
 This project attempts to classify mountains \(let's call them "summits"\) into certain categories, specifically \(i\) which state the summit is in, and \(ii\) whether the summit is a named a "Mount", "Mountain", or "Peak".
 
 As I am an avid hiker, I wondered if there were any convention to why some summits are called a mount \(e.g. "Mount Evans"\), a mountain \("Green Mountain"\), or a peak \("Pikes Peak"\). Apparently, there is no convention on this "summit type", although a few years ago, a college student named Stephen Abegg did a statistical evaluation using elevation, prominence \(how much higher is the summit relative to its neighbors\), and isolation \(a measure of distance between summits\) in a multinomial logistic regression and found a pattern that works most of the time. The pattern is:
