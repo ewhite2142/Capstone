@@ -325,6 +325,12 @@ class cnn_class(object):
         elif by_state_or_type == 'by_type':
             images, labels, compare_type, num_classes, classes = self.filter_data(images, labels_type_str, *labels_filter)
 
+        elif by_state_or_type == 'by_type_GBC3':
+            images, labels, compare_type, num_classes, classes = self.filter_data(images, labels_type_GBC3, *labels_filter)
+
+        elif by_state_or_type == 'by_type_GBC2':
+            images, labels, compare_type, num_classes, classes = self.filter_data(images, labels_type_GBC2, *labels_filter)
+
         else:
             print("run: by_state_or_type={}--this is an incorrect parameter.\nTERMINATING PROGRAM.".format(by_state_or_type))
             sys.exit()
@@ -416,10 +422,9 @@ class cnn_class(object):
         query = '''
         INSERT INTO model_fit_results
         (compare_type, numrows_in_each_class, num_epochs, test_accuracy) VALUES
-        ('{}', {}, {}, {:.2f});
-        '''.format(compare_type, numrows_in_each_class, num_epochs, test_accuracy)
+        ('{}', {}, {}, {});
+        '''.format(compare_type, numrows_in_each_class, num_epochs, test_accuracy*100)
         doquery(cur, query, "INSERT INTO model_fit_results")
-        print("insert: {}".format(query))
 
         cur.close()
 
@@ -429,7 +434,6 @@ class cnn_class(object):
 
 if __name__ == "__main__":
     image_squaring = "padded"
-    print("Reading labels data...")
     # cnn_image_size contains a tuple (horizontal, vertical) representing the number of pixels in the images read in later
     # labels_state contains numpy array (strings) of all states (two letter abbreviations) corresponding to and in same order as images
     # labels_type_str contain  numpy arrays (integers) equal to either "mount", "mountain", or "peak"
@@ -441,7 +445,13 @@ if __name__ == "__main__":
 
     with open(capstone_folder + "pickled_images_labels/labels_type_str.pkl", 'rb') as f:
         labels_type_str = pickle.load(f) #shape=(numrows)
-    print("Done reading labels data.")
+
+    with open(capstone_folder + "pickled_images_labels/labels_type_GBC3.pkl", 'rb') as f:
+        labels_type_GBC3 = pickle.load(f) #shape=(numrows)
+
+    with open(capstone_folder + "pickled_images_labels/labels_type_GBC2.pkl", 'rb') as f:
+        labels_type_GBC2 = pickle.load(f) #shape=(numrows)    print("Done reading labels data.")
+    print("Done reading lables data.")
 
     cnn_image_size = (100, 100)
     print("Reading {} images data...".format(image_squaring))
@@ -452,7 +462,7 @@ if __name__ == "__main__":
     print("Done reading {} images data.\n".format(image_squaring))
 
     #runs is a list of parameter tuples for each model to run
-    runs = [(4000, 'by_state', ('NM', 'UT')), (5000, 'by_state', ('CO', 'WA')), (5000, 'by_state', ('WA', 'NM')), (5000, 'by_state', ('WA', 'UT')), (5000, 'by_state', ('CO', 'UT')), (8000, 'by_type', ('mountain', 'peak')), (5000, 'by_type', ('mount', 'mountain', 'peak'))]
+    runs = [(5000, 'by_type_GBC3', ('mountain', 'peak')), (8000, 'by_type_GBC2', ('mount', 'mountain', 'peak')), (5000, 'by_state', ('CO', 'WA', 'UT')), (4000, 'by_state', ('NM', 'UT')), (5000, 'by_state', ('CO', 'WA')), (5000, 'by_state', ('WA', 'NM')), (5000, 'by_state', ('WA', 'UT')), (5000, 'by_state', ('CO', 'UT')), (8000, 'by_type', ('mountain', 'peak')), (5000, 'by_type', ('mount', 'mountain', 'peak'))]
     num_epochs = 12
     print("\n++++++++++++++ num_epochs={} ++++++++++++++\n".format(num_epochs))
     for run_num, run_ in enumerate(runs, start=1):

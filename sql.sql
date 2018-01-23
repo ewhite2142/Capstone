@@ -78,9 +78,9 @@ FROM images i INNER JOIN summits s ON i.summit_id=s.summit_id
 GROUP BY type_str;
 
 ###### set summit type, type_str ################################
-UPDATE summits SET type=4, type_str='None';
+UPDATE summits SET type=5, type_str='None';
 
-UPDATE summits SET type=1, type_str='mount'
+UPDATE summits SET type=0, type_str='mount'
 WHERE name LIKE '%Mount%' AND name NOT LIKE '%Mountain%' AND name NOT LIKE '%Mountaineer'
     AND  ( name NOT LIKE '%Peak%'
         OR name LIKE '%-North Peak%'
@@ -90,7 +90,7 @@ WHERE name LIKE '%Mount%' AND name NOT LIKE '%Mountain%' AND name NOT LIKE '%Mou
         OR name LIKE '%-Middle Peak%'
         OR name LIKE '%-Southwest Peak%' );
 
-UPDATE summits SET type=2, type_str='mountain'
+UPDATE summits SET type=1, type_str='mountain'
 WHERE name LIKE '%Mountain%' AND name NOT LIKE '%Mountaineer'
 AND  ( name NOT LIKE '%Peak%'
     OR name LIKE '%-North Peak%'
@@ -100,7 +100,7 @@ AND  ( name NOT LIKE '%Peak%'
     OR name LIKE '%-Middle Peak%'
     OR name LIKE '%-Southwest Peak%' );
 
-UPDATE summits SET type=3, type_str='peak'
+UPDATE summits SET type=2, type_str='peak'
 WHERE name LIKE '%Peak%' AND name NOT LIKE '%Mount%'
     AND name NOT LIKE '%-North Peak%'
     AND name NOT LIKE '%-South Peak%'
@@ -109,10 +109,10 @@ WHERE name LIKE '%Peak%' AND name NOT LIKE '%Mount%'
     AND name NOT LIKE '%-Middle Peak%'
     AND name NOT LIKE '%-Southwest Peak%';
 
-UPDATE summits SET type=5, type_str='ambiguous' WHERE summit_id IN
+UPDATE summits SET type=4, type_str='ambiguous' WHERE summit_id IN
 (
 SELECT summit_id FROM summits
-WHERE type = 4 AND (
+WHERE type = 5 AND (
     name LIKE '%Mount%'  OR
     name LIKE '%Peak%'
                     )
@@ -124,13 +124,16 @@ WHERE type = 4 AND (
     AND name NOT LIKE '%-Southwest Peak%'
 );
 
-UPDATE summits SET type=3, type_str='peak'
+UPDATE summits SET type=2, type_str='peak'
 WHERE name LIKE '%Mountaineer Peak%';
 
 SELECT summit_id, name, type_str, type FROM summits
 WHERE type_str='ambiguous';
 ####################################################
 
+SELECT summit_id, name FROM summits
+WHERE name LIKE '%,%'
+ORDER BY name;
 
 SELECT COUNT(*) "num wrong Mount" FROM summits
 WHERE name LIKE '%Mount%' AND name NOT LIKE '%Mountain%' AND type_str <> 'mount';

@@ -30,8 +30,6 @@ from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.linear_model import SGDClassifier
 from sklearn.linear_model import Perceptron
 
-from catboost import CatBoostClassifier #non-sklearn classifer with good reputation
-
 
 def print_numsummits(df):
     '''
@@ -59,8 +57,12 @@ def read_prepare_data():
     engine = alchemy_engine()
 
     #load summits table into pandas df
-    # df = pd.read_sql_query('''SELECT * FROM summits ORDER BY summit_id;''', con=engine)
-    df = pd.read_csv('~/dsi/Capstone/summits.csv')
+    df = pd.read_sql_query('''
+    SELECT * FROM summits
+    WHERE type_str IN ('mount', 'mountain', 'peak')
+    ORDER BY summit_id;
+    ''', con=engine)
+    # df = pd.read_csv('~/dsi/Capstone/summits.csv')
     X = df[['elevation','isolation', 'prominence']]
     y = df['type']
 
@@ -73,7 +75,6 @@ def read_prepare_data():
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=1)
 
     return X_train, X_test, y_train, y_test, df
-
 
 
 def pick_best_classifier(X_train, X_test, y_train, y_test):
