@@ -60,3 +60,7 @@ The CNN did much better on a two-way state-by-state comparison. As shown above, 
 Remarkably, when the CNN compared three states, CO or WA or UT, it obtained 65% accuracy, better than the CO versus UT accuracy of only 60%, but not as wass as the CO versus WA accuracy of 76%.
 
 ![alt tag](images/cnn_gbc_labels.png)
+
+As mentioned above, the classification of mountain types by Mount, Mountain, or Peak is not a standard by any official organization, but a naming convention that works with less than 60% accuracy using the gradient boosing classifier. Therefore, one might not expect the CNN classifier to do any better \(it does not\). However, I had the idea of using the predict function of the GBC classifier to generate labels that were used for the CNN classifier. This way, we could see if the poor performance of the CNN in comaring summit types was due to mislabeling, or that the CNN was simply incapable of making the distinction. As shown above, using the GBC generated lables had a slightly NEGATIVE effect on the the results. I expected an improvement in the results, so I am surprised by this outcome.
+
+If, in fact,  the elevation, isolation, and prominence of the summits determines its naming convention, then the photos would have to show this. In particular, the photos would need to show the summits with their surrounding summits nearby. Some of the photos do this, but others do not. {show examples...}
