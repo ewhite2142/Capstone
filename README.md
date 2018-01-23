@@ -58,3 +58,5 @@ Recall that the data included images for 9,293 Mountains and 8,291 Peaks, but fo
 The CNN did much better on a two-way state-by-state comparison. As shown above, three of the state-by-state comparisons had over 76% accuracy, and two of them were above 60% accuracy. CO versus UT had the lowest accuracy \(60%\), perhaps because the summits in western CO \(including the Colorado National Monument\) are similar to the arches and other summits in UT, and CO and UT are border states. WA is the furthest north and NM is the furthest south among the states compared, and that comparison performed the best at 77% accuracy.
 
 Remarkably, when the CNN compared three states, CO or WA or UT, it obtained 65% accuracy, better than the CO versus UT accuracy of only 60%, but not as wass as the CO versus WA accuracy of 76%.
+
+![alt tag](images/cnn_gbc_labels.png)
