@@ -462,7 +462,7 @@ if __name__ == "__main__":
     print("Done reading {} images data.\n".format(image_squaring))
 
     #runs is a list of parameter tuples for each model to run
-    runs = [(5000, 'by_type_GBC3', ('mountain', 'peak')), (8000, 'by_type_GBC2', ('mount', 'mountain', 'peak')), (5000, 'by_state', ('CO', 'WA', 'UT')), (4000, 'by_state', ('NM', 'UT')), (5000, 'by_state', ('CO', 'WA')), (5000, 'by_state', ('WA', 'NM')), (5000, 'by_state', ('WA', 'UT')), (5000, 'by_state', ('CO', 'UT')), (8000, 'by_type', ('mountain', 'peak')), (5000, 'by_type', ('mount', 'mountain', 'peak'))]
+    runs = [(5000, 'by_type_GBC3', ('mount', 'mountain', 'peak')), (8000, 'by_type_GBC2', ('mountain', 'peak')), (5000, 'by_state', ('CO', 'WA', 'UT')), (4000, 'by_state', ('NM', 'UT')), (5000, 'by_state', ('CO', 'WA')), (5000, 'by_state', ('WA', 'NM')), (5000, 'by_state', ('WA', 'UT')), (5000, 'by_state', ('CO', 'UT')), (8000, 'by_type', ('mountain', 'peak')), (5000, 'by_type', ('mount', 'mountain', 'peak'))]
     num_epochs = 12
     print("\n++++++++++++++ num_epochs={} ++++++++++++++\n".format(num_epochs))
     for run_num, run_ in enumerate(runs, start=1):
