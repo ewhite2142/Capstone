@@ -66,3 +66,55 @@ Remarkably, when the CNN compared three states, CO or WA or UT, it obtained 65% 
 As mentioned above, the classification of mountain types by Mount, Mountain, or Peak is not a standard by any official organization, but a naming convention that works with less than 60% accuracy using the gradient boosing classifier. Therefore, one might not expect the CNN classifier to do any better \(it does not\). However, I had the idea of using the predict function of the GBC classifier to generate labels that were used for the CNN classifier. This way, we could see if the poor performance of the CNN in comaring summit types was due to mislabeling, or that the CNN was simply incapable of making the distinction. As shown above, using the GBC generated lables had a slightly NEGATIVE effect on the the results. I expected an improvement in the results, so I am surprised by this outcome.
 
 If, in fact,  the elevation, isolation, and prominence of the summits determines its naming convention, then the photos would have to show this. In particular, the photos would need to show the summits with their surrounding summits nearby. Some of the photos do this, but others do not. {show examples...}
+
+### Steps to run CNN
+
+Preprocessing of photos by preprocess\_images.py:
+
+1. Used zero-padding to make all images square**.** Note: All images in the database had the same number of pixels \(500x200\). I tried running the CNN with the original size images, and by cropping the images to make them square. Clearly, the best performance was achieved by zero-padding the top and bottom of the images to make them square. This significantly outperformed using the original images or cropping them \(cutting the horizontal sides to fit the vertical\).
+2. Downsized the images to 100x100 pixels**.** I tried also downsizing to 256x256 pixels, but even with a PC with 64GB of memory, I encountered an out-of-memory error. I then tried downsizing to 175x175 pixels, but I did not get significantly improved results, and it came at the expense of much slower processing times, so I used 100x100.
+3. Saved images \(as numpy array\) and labels \(as strings\) in pickle files for quick retrieval by the cnn\_train.py module.
+
+Fitting model and showing accuracy results for test samples in cnn\_train.py:
+
+1. Pickled images and labels are read in.
+2. The _main_ segment loops through the various comparisons that I want to run \(e.g. CO vs UT, mountain vs peak, etc.\) by calling function run on each set of comparisons. For each comparison:  
+   1. Images/labels are sorted by comparison selection \(e.g. for CO vs UT, images/labels for those two states are filtered out.
+
+   1. The number of samples \(rows\) in each class size is resampled to a standard size, that size depending on how many images/labels are left after filtering in step 1. For example, since the data includes 5302 images for WA and 4019 form UT, these classes were resampled to 5000 rows each. The data includes 4316 mountains and 8291 peaks, so these classes were resized to 8000 rows each.
+
+   2. The labels are one hot encoded, as the CNN requires.
+
+   3. The images and labels are split into 80% train and 20% test classes.
+
+   4. The CNN model is fit on the train data.
+
+   5. The CNN model is evaluated on the test data and the results recorded in the psql database.
+
+### Layers in the CNN Model
+
+The CNN model is Keras's Sequential model. The layers in this model \(with the last step at the stop\) are:
+
+Activation - softmax
+
+Dense \(\#classes\)
+
+Dropout .25
+
+Activation relu
+
+Dense 128
+
+Flatten
+
+Dropout .25
+
+Activation relu
+
+Maxpooling \(3,3\)
+
+Activation -relu
+
+Conv2D
+
+
