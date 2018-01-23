@@ -26,7 +26,7 @@ My idea is to see if a convolutional neural network \("cnn"\), an advanced algor
 
 I obtained all of my data from the listsofjohn.com website. listsofjohn is a website with information on nearly every summit in the United State, and it allows registered users to keep track of the summits they've hiked on the site. The adimisitor of the website, John Kirk, was exceptionally helpful in providing me the numerical data and links to directly download all of the nearly 50,000 photos on the website.
 
-![alt text\][https://github.com/ewhite2142/Capstone/blob/master/images/Summit_type.png]
+![alt tag][https://github.com/ewhite2142/Capstone/blob/master/images/Summit_type.png]
 [Summits by Sate](images/Summits_by_state.png)
 
 1. **Minimum \#Photos per Class**: A cnn needs several thousand photos in each class \(e.g. state or summit type\) in order for it to adequately classify photos. The number of images of Mounts is only 2,516, and as we go down the list of states, the number of images available drops off, so I limited it to the top four states by \#images. I had the idea of trying to classify as photo as being in the Appalachain Mountains in the east versus the Rocky Mountains in the west, but I only have a total of 1,461 images for summits in all the Appalachian states versus over 37,000 images for summits in Rocky Mountain states. Even with upsizing, the number of images for Appalachia is insufficent.
