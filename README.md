@@ -25,6 +25,7 @@ My idea is to see if a convolutional neural network \("cnn"\), an advanced algor
 ### Data
 
 I obtained all of my data from the listsofjohn.com website. listsofjohn is a website with information on nearly every summit in the United State, and it allows registered users to keep track of the summits they've hiked on the site. The adimisitor of the website, John Kirk, was exceptionally helpful in providing me the numerical data and links to directly download all of the nearly 50,000 photos on the website.
+
 ![alt tag](images/Summits_by_state.png)
 ![alt tag](images/Summit_type.png)
 
