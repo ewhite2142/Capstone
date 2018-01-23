@@ -111,7 +111,7 @@ Dropout .25
 
 Activation relu
 
-Maxpooling \(3,3\)
+Maxpooling2D \(3,3\)
 
 Activation -relu
 
