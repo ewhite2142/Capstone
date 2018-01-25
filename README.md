@@ -49,18 +49,18 @@ I obtained all of my data from the listsofjohn.com website. listsofjohn is a web
 
 ### Results
 
-![alt tag](images/summits_table.png)
+![alt tag](images/results_table.png)
 
 Thirteen different numerical classifiers were tried on the numerical data \(elevation, isolation, and prominence\) to try to classify the summits by type. The classifier with the best performance was the gradient boosting classifier \(GBC\), which had 83% accuracy picking between a Mountain or a Peak on the test set data, but only 58% accuracy picking among Mount, Mountain, or Peak.
 
-Recall that the data included images for 9,293 Mountains and 8,291 Peaks, but for only 2,516 Mounts. The number of Mounts is not quite sufficient to do a good comparison with a CNN, although upsampling was used to help. Therefore, both a two-way comparison of Mountain versus Peak was done, with each class resampled to 8000 summits each, as well as a three summit type comparison resampled to 5000 summits each. As with the gradient boosting classifier, the accuracy of the CNN was better on the two-way comparison \(51%\) versus the three-way \(39%\), but this performance is unimpressive and it significantly underperformed the GBC.
+Recall that the data included images for 9,293 Mountains and 8,291 Peaks, but for only 2,516 Mounts. The number of Mounts is not quite sufficient to do a good comparison with a CNN, although upsampling was used to help. Therefore, both a two-way comparison of Mountain versus Peak was done, with each class resampled to 8000 summits each, as well as a three summit type comparison resampled to 5000 summits each. As with the gradient boosting classifier, the accuracy of the CNN was better on the two-way comparison \(60%\) versus the three-way \(41%\), but this performance is unimpressive and it significantly underperformed the GBC.
 
-The CNN did much better on a two-way state-by-state comparison. As shown above, three of the state-by-state comparisons had over 76% accuracy, and two of them were above 60% accuracy. CO versus UT had the lowest accuracy \(60%\), perhaps because the summits in western CO \(including the Colorado National Monument\) are similar to the arches and other summits in UT, and CO and UT are border states. WA is the furthest north and NM is the furthest south among the states compared, and that comparison performed the best at 77% accuracy.
+The CNN did much better on a two-way state-by-state comparison. As shown above, three of the state-by-state comparisons had over 80% accuracy, and another had 64% accuracy. CO versus UT had the lowest accuracy \(63%\), perhaps because the summits in western CO \(including the Colorado National Monument\) are similar to the arches and other summits in UT, and CO and UT are border states. WA is the furthest north and NM is the furthest south among the states compared, and that comparison performed the best at 84% accuracy.
 
-Remarkably, when the CNN compared three states, CO or WA or UT, it obtained 65% accuracy, better than the CO versus UT accuracy of only 60%, but not as was as the CO versus WA accuracy of 76%.
+Remarkably, when the CNN compared three states, CO or WA or UT, it obtained 63% accuracy, better than the CO versus UT accuracy of only 51%, but not as was as the CO versus WA accuracy of 80%.
 
 ![alt tag](images/cnn_gbc_labels.png)
 
 As mentioned above, the classification of mountain types by Mount, Mountain, or Peak is not a standard by any official organization, but a naming convention that works with less than 60% accuracy using the gradient boosting classifier. Therefore, one might not expect the CNN classifier to do any better \(it does not\). However, I had the idea of using the predict function of the GBC classifier to generate labels that were used for the CNN classifier. This way, we could see if the poor performance of the CNN in comparing summit types was due to mislabeling, or that the CNN was simply incapable of making the distinction. As shown above, using the GBC generated labels had a slightly NEGATIVE effect on the the results. I expected an improvement in the results, so I am surprised by this outcome.
 
-If, in fact,  the elevation, isolation, and prominence of the summits determines its naming convention, then the photos would have to show this. In particular, the photos would need to show the summits with their surrounding summits nearby. Some of the photos do this, but others do not. {show examples...}
+If, in fact,  the elevation, isolation, and prominence of the summits determines its naming convention, then the photos would have to show this. In particular, the photos would need to show the summits with their surrounding summits nearby. Some of the photos do this, but others do not.
