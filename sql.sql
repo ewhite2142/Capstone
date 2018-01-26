@@ -21,13 +21,30 @@ url         varchar(50),
 filename    varchar(20)
 );
 
+drop table model_fit_results;
 CREATE TABLE model_fit_results (
-compare_type            varchar(20),
+model_num               int,
+time_completed          timestamp with time zone,
+test_accuracy           numeric(5, 2),
+comparison              varchar(20),
+by_type                 varchar(14),
 numrows_in_each_class   smallint,
 num_epochs              smallint,
-test_accuracy           numeric(5, 2),
-PRIMARY KEY (compare_type, numrows_in_each_class, num_epochs)
+batch_size              int,
+num_filters             int,
+pool_size               int[],
+kernel_size             int[],
+input_shape             int[],
+dense                   int,
+dropout1                numeric(3,2),
+dropout2                numeric(3,2),
+num_classes             smallint,
+model_filename          varchar(50),
+PRIMARY KEY (model_num, comparison, by_type)
 );
+
+
+
 
 ALTER TABLE images
 ADD CONSTRAINT images_summit_id_fkey
@@ -35,7 +52,11 @@ FOREIGN KEY (summit_id)
 REFERENCES summits (summit_id)
 ON UPDATE CASCADE;
 
-SELECT * FROM model_fit_results;
+INSERT INTO model_fit_results (test_accuracy, time_completed, compare_type, numrows_in_each_class, num_epochs, batch_size, num_filters, pool_size, kernel_size, input_shape, dense, dropout1, dropout2, num_classes) VALUES (0.35733333333333334, TIMESTAMP WITH TIME ZONE '2018-01-24 12:16:31.677598', 'by_type_GBC3', 5000, 12, 128, 32, '{3, 3}', '{4, 4}', '{100, 100, 3}', 128, 0.25, 0.25, 3);
+
+
+SELECT * FROM model_fit_results WHERE model_num = (SELECT MAX(model_num) FROM model_fit_results) ORDER BY model_num DESC, time_completed;
+DELETE FROM model_fit_results;
 
 SELECT COUNT(*) FROM summits WHERE state IS NULL;
 SELECT summit_id, longitude FROM summits WHERE longitude > 0;
@@ -221,12 +242,12 @@ DELETE FROM summits WHERE summit_id IN
 ###################################################
 
 # #summits & images for Mount, Mountains, & Peaks by type
-SELECT type_str, COUNT(DISTINCT s.summit_id) "#summits", COUNT(i.image_id) "#images"
+SELECT type_str, COUNT(DISTINCT s.summit_id) "#summits", COUNT(DISTINCT i.image_id) "#images"
 FROM summits s RIGHT OUTER JOIN images i ON s.summit_id=i.summit_id
 GROUP BY type_str, type
 ORDER BY type;
 
-SELECT state, COUNT(DISTINCT s.summit_id) "#summits", COUNT(i.image_id) "#images"
+SELECT state, COUNT(DISTINCT s.summit_id) "#summits", COUNT(DISTINCT i.image_id) "#images"
 FROM summits s RIGHT OUTER JOIN images i ON s.summit_id=i.summit_id
 GROUP BY s.state ORDER BY "#images" DESC, "#summits" DESC;
 
@@ -238,7 +259,60 @@ SELECT COUNT(DISTINCT s.summit_id) "#summits-Mtn States", COUNT(image_id) AS "#i
 FROM summits s RIGHT OUTER JOIN images i on s.summit_id = i.summit_id
 WHERE state IN ('AZ', 'CO', 'ID', 'MT', 'NV', 'NM', 'UT', 'WY');
 
-SELECT COUNT(*) FROM summits;
+SELECT state, AVG(elevation) "Avg Elev", MAX(elevation) "Max Elev", MIN(elevation) "Min Elev", AVG(prominence) "Avg Promin", MAX(prominence) "Max Promin", MIN(prominence) "Min Promin", AVG(isolation) "Avg Isol", MAX(isolation) "Max Isol", MIN(isolation) "Min Isol"
+FROM summits
+WHERE state IN ('NM', 'UT', 'WA', 'CO')
+GROUP BY state
+ORDER BY state;
+
+SELECT state, COUNT(summit_id) "# Summits", AVG(elevation) "Avg Elev", AVG(prominence) "Avg Promin", AVG(isolation) "Avg Isol"
+FROM summits
+WHERE state IN ('NM', 'UT', 'WA', 'CO')
+GROUP BY state
+ORDER BY state;
+
+SELECT s.summit_id, i.image_id, name
+FROM summits s INNER JOIN images i ON s.summit_id=i.summit_id
+WHERE name ='Baker, Mount' AND state='WA' and elevation=10781
+ORDER BY summit_id, image_id;
+
+SELECT type_str, COUNT(summit_id) "# Summits", AVG(elevation) "Avg Elev", AVG(prominence) "Avg Promin", AVG(isolation) "Avg Isol"
+FROM summits
+WHERE state IN ('NM', 'UT', 'WA', 'CO')
+    AND type_str IN ('mount', 'mountain', 'peak')
+GROUP BY type_str
+ORDER BY type_str;
+
+SELECT type_str, COUNT(summit_id) "# Summits", AVG(elevation) "Avg Elev", AVG(prominence) "Avg Promin", AVG(isolation) "Avg Isol"
+FROM summits
+WHERE state IN ('WA', 'CO')
+    AND type_str IN ('mount', 'mountain', 'peak')
+GROUP BY type_str
+ORDER BY type_str;
+
+SELECT state, count(summit_id) "# Summits"
+FROM summits
+WHERE elevation > 1000
+GROUP BY state
+ORDER BY "# Summits" DESC
+LIMIT 6;
+
+WITH summits_ AS (
+SELECT * FROM summits WHERE elevation>1000
+   AND state IN ('NM', 'UT', 'WA', 'CO') )
+SELECT s.state, COUNT(DISTINCT s.summit_id) "#Summits", COUNT(DISTINCT i.image_id) "#Images" FROM summits_ s INNER JOIN images i ON s.summit_id=i.summit_id
+GROUP BY s.state
+ORDER BY state;
+
+SELECT type_str, MIN(elevation) "Min Elev"
+FROM summits
+GROUP BY type_str
+ORDER BY type_str;
+
+SELECT COUNT(*) FROM images;
+
+
+SELECT COUNT(*) FROM summits WHERE elevation < 1000;
 SELECT COUNT(*) FROM images;
 
 
@@ -251,3 +325,14 @@ SELECT * FROM images WHERE summit_id=11;
 SELECT * FROM summits WHERE summit_id=11;
 
 SELECT * FROM summits WHERE LENGTH(state)>2;
+
+
+SELECT s.name, s.summit_id, i.image_id FROM summits s INNER JOIN images i ON s.summit_id=i.summit_id
+WHERE name='Inspiration Peak' AND state='WA';
+
+SELECT name, state, elevation, isolation, prominence, s.summit_id, i.image_id
+FROM summits s INNER JOIN images i ON s.summit_id=i.summit_id
+WHERE s.summit_id IN (54046, 48963, 3852)
+    AND image_id IN (48634, 7430, 8325);
+
+SELECT * FROM model_fit_results;

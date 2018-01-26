@@ -13,7 +13,7 @@ from my_libraries import *
 
 capstone_folder, images_folder = folders()
 
-def doquery(curs, query, err_msg):
+def doquery(cur, query, err_msg):
     '''
     INPUT:
     curs: open psql cursor
@@ -25,7 +25,7 @@ def doquery(curs, query, err_msg):
     Best to close psql connection (conn) if error (error leaves conn open), cuz multiple conn open causes problems, so this function uses try to execute and commit query. If error: prints errors message, closes conn, and exits program.
     '''
     try:
-        curs.execute(query)
+        cur.execute(query)
         cur.connection.commit()
     except Exception as ex:
         print('\n************************* error in {}:\n{}'.format(err_msg, ex))

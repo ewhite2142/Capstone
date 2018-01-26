@@ -12,21 +12,39 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers import Flatten, Conv2D, MaxPooling2D
 import os
+import datetime
 
 set_random_seed(1000)
 
-home = os.getenv("HOME")
 capstone_folder, images_folder = folders()
 # np.random.RandomState = 1000 #does NOT give consistent results every time--use np.random.seed instead
 
-if home == '/Users/edwardwhite': #MacBook
-    conn = psycopg2.connect(dbname='summitsdb', host='localhost')
 
-elif home == '/home/ed': #Linux
-    with open(home +  '/.google/psql', 'r') as f:
-        p = f.readline().strip()
-    conn = psycopg2.connect(dbname='summitsdb', host='localhost', user='ed', password=p)
-    p = None
+def get_cursor():
+    '''return psql connection and cursor'''
+            #set up connection and cursor to psql summitsdb
+    home = os.getenv("HOME")
+    if home == '/Users/edwardwhite': #MacBook
+        conn = psycopg2.connect(dbname='summitsdb', host='localhost')
+
+    elif home == '/home/ed': #Linux
+        with open(home +  '/.google/psql', 'r') as f:
+            p = f.readline().strip()
+        conn = psycopg2.connect(dbname='summitsdb', host='localhost', user='ed', password=p)
+        p = None
+    return conn, conn.cursor()
+
+
+#I learned the hard way...This psycopg2 function has to be within the same class and module as it is being run it; otherwise, results from SQL queries will be non-existant even with no exception thrown.
+def doquery(cur, query, title):
+    #best to close conn if error (error leaves conn open), cuz multiple conn open causes problems
+    try:
+        cur.execute(query)
+        cur.connection.commit()
+    except Exception as ex:
+        print('\n********************************************* error in {}\n{}'.format(title, ex))
+        cur.connection.close()
+        sys.exit()
 
 
 class cnn_class(object):
@@ -35,8 +53,8 @@ class cnn_class(object):
 
     Each image input and processed in this module has shape(rows of images, 100, 100, 3). 100x100x3 is an image of numrows horizontal, numcols vertical, and 3 colors RGB--this is the tensorflow input_shape, as opposed to the theano shape of 3x100x100, which is not used here.
     '''
-    def __init__(self):
-        pass
+    def __init__(self, model_num):
+        self.model_num = model_num
 
     def filter_data(self, images, labels, *choices):
         '''
@@ -71,7 +89,7 @@ class cnn_class(object):
 
         X = [] #images to be returned
         y = [] #converted labels to be returned
-        compare_type = '' #string to be returned
+        comparison = '' #string to be returned
         classes = [] #list to be returned
         y_col_index = dict() #key=choice, value=y column index, used below
 
@@ -83,22 +101,22 @@ class cnn_class(object):
                 sys.exit()
 
             y_col_index[choice] = col_index
-            compare_type += choice + "_"
+            comparison += choice + "_"
             classes.append(choice)
-        compare_type = compare_type[:-1] #drop last "_" from compare_type
+        comparison = comparison[:-1] #drop last "_" from comparison
 
         for y_val, (image, label) in enumerate(zip(images, labels)):
             if label in choices:
                 X.append(image)
                 y.append(y_col_index[label])
 
-        return np.array(X), np.array(y), compare_type, num_classes, classes
+        return np.array(X), np.array(y), comparison, num_classes, classes
 
     # #TEST above
     # images = np.array([11, 12, 13, 14, 15])
     # labels = np.array(['CO', 'WA', 'CO', 'NM', 'CO'])
-    # X, y, compare_type, num_classes, classes = filter_data(images, labels, 'WA', 'CO')
-    # print ("{}\n{}\n{}\n{}\n{}".format(X, y, compare_type, num_classes, classes))
+    # X, y, comparison, num_classes, classes = filter_data(images, labels, 'WA', 'CO')
+    # print ("{}\n{}\n{}\n{}\n{}".format(X, y, comparison, num_classes, classes))
 
 
     def balance_classes(self, X, y, numrows_in_each_class, num_classes):
@@ -250,96 +268,151 @@ class cnn_class(object):
         for y_row, y_val in enumerate(y_not_categ):
             y[y_row, y_val] = 1
         return np.array(y)
-
     # #TEST above
-    # print(one_hot_encode_labels(np.array([0, 0, 1, 0]), 2))
+    # print(one_hot_encode_labels(None, np.array([0, 0, 1, 0]), 2))
 
 
-    def fit_cnn(self, X_train, y_train, X_test, y_test, input_shape, num_classes, num_epochs):
+    def fit_cnn(self, X_train, y_train, X_test, y_test, **params):
         '''
         INPUT
         X_train, y_train, X_test, y_test: np.arrays of X images, y labels (one hot vectors) split into train, test sets
-        input_shape: tuple of integers (length, width)
-        num_classes: int representing number of unique labels
+
+        **params:
+        num_epochs--12
+        batch_size--128, 140 mine
+
+        number of convolutional filters to use:
+        num_filters--32 #32 orig, 30 mine
+
+        size of pooling area for max pooling:
+        pool_size--(3,3) #(2, 2)
+
+        # convolution kernel size:
+        kernel_size--(4,4) #(3, 3)
+
+        #(# pixels horizontal, #pixelsvertical)
+        input_shape--(100,100)
+
+        dense--128
+        dropout1--0.25
+        dropout2--0.25
+
 
         OUTPUT
         cnn_model: fit with INPUT X_train, y_train
         float: test_accuracy of of fitted model on X_test, y_test
         '''
-        #parameters for cnn
-        batch_size = 150 #128
-
-        # number of convolutional filters to use
-        num_filters = 30 #32
-        # size of pooling area for max pooling
-        pool_size = (3,3) #(2, 2)
-        # convolution kernel size
-        kernel_size = (4,4) #(3, 3)
 
         #create Sequential cnn in Keras
         model = Sequential()
         # 2 convolutional layers followed by a pooling layer followed by dropout
-        model.add(Conv2D(filters=num_filters, kernel_size=(kernel_size), padding='valid', input_shape=input_shape))
+        model.add(Conv2D(filters=params['num_filters'], kernel_size=(params['kernel_size']), padding='valid', input_shape=params['input_shape']))
         model.add(Activation('relu'))
 
-        model.add(Conv2D(filters=num_filters, kernel_size=kernel_size))
+        model.add(Conv2D(filters=params['num_filters'], kernel_size=params['kernel_size']))
 
         model.add(Activation('relu'))
-        model.add(MaxPooling2D(pool_size=pool_size))
-        model.add(Dropout(0.25))
+        model.add(MaxPooling2D(pool_size=params['pool_size']))
+        model.add(Dropout(params['dropout1']))
 
         # transition to an mlp
         model.add(Flatten())
-        model.add(Dense(128)) #128 #400
+        model.add(Dense(params['dense'])) #128 #400
         model.add(Activation('relu'))
-        model.add(Dropout(0.25)) #0.5
-        model.add(Dense(num_classes))
+        model.add(Dropout(params['dropout2'])) #0.5
+        model.add(Dense(params['num_classes']))
         model.add(Activation('softmax'))
 
         model.compile(loss='categorical_crossentropy',
                       optimizer='nadam', #adadelta
                       metrics=['accuracy'])
 
-        model.fit(X_train, y_train, batch_size=batch_size, epochs=num_epochs,
-                  verbose=1, validation_data=(X_test, y_test))
+        # test_accuracy = (.5, .5)
+        model.fit(X_train, y_train, batch_size=params['batch_size'], epochs=params['num_epochs'], verbose=1, validation_data=(X_test, y_test))
         # X_train.shape, y_train.shape, X_test.shape, y_test.shape
 
-        score = model.evaluate(X_test, y_test, verbose=0)
-        print("model.metrics={}, score={}".format(model.metrics, score))
+        print("Finished model.fit(). Now model.evaluate().")
+        test_accuracy = 100 * model.evaluate(X_test, y_test, verbose=0)[1]
+        print('Test accuracy={} <-------------------------\n'.format(test_accuracy))
+        print("Finished model evaluate(). Now saving data into DB.")
 
-        # print('\nTest loss={}'.format(score[0]))
-        print('Test accuracy={} <-------------------------\n'.format(score[1]))
+        # print("Finished model.evaluate(). Now evaluate_model().")
+        # accuracy, recall, precision, f1_score, TP, TN, FP, FN = self.evaluate_model(model, X_test, y_test)
+        # print("Finished model.evaluate().")
 
-        return model, score[1] # model, test_accuracy
+        conn, cur = get_cursor()
+
+        fn_prefix = capstone_folder + "models/"
+        model_filename = "model_" + str(self.model_num) + "_" + params['comparison'] + "_" + params['by_type']
+
+        #insert results into psql model_fit_results table
+        query = "INSERT INTO model_fit_results (model_num, time_completed, test_accuracy, "
+
+        for param in params:
+            query += param + ", "
+        query += 'model_filename'") VALUES ({}, TIMESTAMP WITH TIME ZONE '{}', {}, ".format(self.model_num, datetime.datetime.now(), test_accuracy)
+        for value in params.values():
+            if type(value) == str:
+                query += "'{}', ".format(value)
+            elif type(value) == tuple:
+                query += "'{"
+                for v in value:
+                    query += "{}, ".format(v)
+                query = query[:-2] #drop last ", " at end
+                query += "}', "
+            else:
+                query += "{}, ".format(value)
+        query += "'{}');".format(model_filename)
+        # print("query={}".format(query))
+        doquery(cur, query, "INSERT INTO model_fit_results")
+
+        cur.close()
+        conn.close()
+
+        #save model for future use
+        model_filename = fn_prefix + model_filename
+        try:
+            print("Saving model to json & h5...")
+            with open(model_filename + ".json", "w") as f:
+                f.write(model.to_json())
+            model.save_weights(model_filename + ".h5")
+            print("Done saving model to json & h5.")
+        except Exception as ex:
+            print("!!!!!! Error trying to save model to json & h5 !!!!!!!:\n{}".format(ex))
+            sys.exit()
+
+        return model, test_accuracy # model, test_accuracy
 
 
-    def run(self, images, labels_state, labels_type_str, numrows_in_each_class, by_state_or_type, num_epochs, *labels_filter):
+    def run(self, images, by_state_or_type, labels_state, labels_type_str, *labels_filter, **params):
         '''
-        Runs each batch of INPUTs through steps to generate test accuracy results, and save results in a file
+        Runs each batch of INPUTs through steps to generate test accuracy results, and save results in model_fit_results table in summitsdb
         '''
-        results = dict() #stores model type: test_accuracy results of each model run
-
         if by_state_or_type == 'by_state':
-            images, labels, compare_type, num_classes, classes = self.filter_data(images, labels_state, *labels_filter)
+            images, labels, comparison, num_classes, classes = self.filter_data(images, labels_state, *labels_filter)
 
         elif by_state_or_type == 'by_type':
-            images, labels, compare_type, num_classes, classes = self.filter_data(images, labels_type_str, *labels_filter)
+            images, labels, comparison, num_classes, classes = self.filter_data(images, labels_type_str, *labels_filter)
 
         elif by_state_or_type == 'by_type_GBC3':
-            images, labels, compare_type, num_classes, classes = self.filter_data(images, labels_type_GBC3, *labels_filter)
+            images, labels, comparison, num_classes, classes = self.filter_data(images, labels_type_GBC3, *labels_filter)
 
         elif by_state_or_type == 'by_type_GBC2':
-            images, labels, compare_type, num_classes, classes = self.filter_data(images, labels_type_GBC2, *labels_filter)
+            images, labels, comparison, num_classes, classes = self.filter_data(images, labels_type_GBC2, *labels_filter)
 
         else:
             print("run: by_state_or_type={}--this is an incorrect parameter.\nTERMINATING PROGRAM.".format(by_state_or_type))
             sys.exit()
 
+        params['comparison'] = comparison
+        print("params={}".format(params))
+
         #balance classes--do this before one hot encoding
-        images, labels = self.balance_classes(images, labels, numrows_in_each_class=numrows_in_each_class, num_classes=num_classes)
+        images, labels = self.balance_classes(images, labels, numrows_in_each_class=params['numrows_in_each_class'], num_classes=params['num_classes'])
 
         #convert labels to one hot encoding
         labels =self.one_hot_encode_labels(labels, num_classes)
+        # print("labels[:10] after one_hot_encode_labels:\n{}".format(labels[:10]))
 
         #shuffle data and split data into 80/20 train/test split
         X_train, X_test, y_train, y_test = train_test_split(images, labels, test_size=0.20) #random_state set in np.random.seed at top
@@ -358,78 +431,9 @@ class cnn_class(object):
         print("Done preparing data and model.\nNow fitting model using {} data.\n".format(image_squaring))
 
         # Keras input image dimensions
-        input_shape = (cnn_image_size[0], cnn_image_size[1], 3)
-        print("input_shape={}".format(input_shape))
+        print("input_shape={}".format(params['input_shape']))
         #fit model
-        model, test_accuracy = self.fit_cnn(X_train, y_train, X_test, y_test, input_shape, num_classes, num_epochs)
-
-        results[(compare_type, numrows_in_each_class)] = test_accuracy
-
-        #this gives an error
-        # try:
-        #     print("Saving model using karis to hdf5...")
-        #     tf.keras.models.save_model(model=model, filepath=capstone_folder + "model_" + image_squaring + "_" + compare_type + ".hdf5", overwrite=True, include_optimizer=True)
-        #     print("Done savming model using karis!")
-        # except Exception as ex:
-        #     print("Error trying to use tf.keras.models.save_model\n{}".format(ex))
-
-        #save model for future use
-        try:
-            print("Saving model to json & h5...")
-            fn = capstone_folder + "models/model_" + image_squaring + "_" + compare_type
-            with open(fn + ".json", "w") as f:
-                f.write(model.to_json())
-            model.save_weights(fn + ".h5")
-            print("Done saving model to json & h5.")
-        except Exception as ex:
-            print("!!!!!! Error trying to save model to json & h5 !!!!!!!:\n{}".format(ex))
-            sys.exit()
-
-        #save results to DB
-        #I learned the hard way...This psycopg2 function has to be within the same class and module as it is being run it; otherwise, results from SQL queries will be non-existant even with no exception thrown.
-        def doquery(curs, query, title):
-            #best to close conn if error (error leaves conn open), cuz multiple conn open causes problems
-            try:
-                curs.execute(query)
-                cur.connection.commit()
-            except Exception as ex:
-                print('\n********************************************* error in {}\n{}'.format(title, ex))
-                cur.connection.close()
-                sys.exit()
-
-        cur = conn.cursor()
-
-        #delete row if already exists
-        # compare_type="NM_UT"
-        # numrows_in_each_class=2
-        # num_epochs=1
-        # test_accuracy = 0.54897898
-        query = '''
-        SELECT EXISTS (SELECT * FROM model_fit_results
-        WHERE compare_type='{}' AND numrows_in_each_class={} and num_epochs={});
-        '''.format(compare_type, numrows_in_each_class, num_epochs)
-        doquery(cur, query, "EXISTS row in model_fit_results")
-        already_in_db = cur.fetchone()[0]
-        if already_in_db:
-            query = '''
-            DELETE FROM model_fit_results
-            WHERE compare_type='{}' AND numrows_in_each_class={} and num_epochs={};
-            '''.format(compare_type, numrows_in_each_class, num_epochs)
-            doquery(cur, query, "DELETE existing row in model_fit_results")
-            print("already in db: {}".format(query))
-
-        #insert results into model_fit_results table
-        query = '''
-        INSERT INTO model_fit_results
-        (compare_type, numrows_in_each_class, num_epochs, test_accuracy) VALUES
-        ('{}', {}, {}, {});
-        '''.format(compare_type, numrows_in_each_class, num_epochs, test_accuracy*100)
-        doquery(cur, query, "INSERT INTO model_fit_results")
-
-        cur.close()
-
-        return results
-
+        self.fit_cnn(X_train, y_train, X_test, y_test, **params)
 
 
 if __name__ == "__main__":
@@ -453,7 +457,7 @@ if __name__ == "__main__":
         labels_type_GBC2 = pickle.load(f) #shape=(numrows)    print("Done reading labels data.")
     print("Done reading lables data.")
 
-    cnn_image_size = (100, 100)
+    cnn_image_size = (100, 100, 3)
     print("Reading {} images data...".format(image_squaring))
     # the images files are large and take several seconds to load
     fn = "pickled_images_labels/images_"
@@ -461,28 +465,40 @@ if __name__ == "__main__":
         images = pickle.load(f) #shape=(numrows, cnn_image_size[0], cnn_image_size[1], 3)
     print("Done reading {} images data.\n".format(image_squaring))
 
-    #runs is a list of parameter tuples for each model to run
-    runs = [(5000, 'by_type_GBC3', ('mount', 'mountain', 'peak')), (8000, 'by_type_GBC2', ('mountain', 'peak')), (5000, 'by_state', ('CO', 'WA', 'UT')), (4000, 'by_state', ('NM', 'UT')), (5000, 'by_state', ('CO', 'WA')), (5000, 'by_state', ('WA', 'NM')), (5000, 'by_state', ('WA', 'UT')), (5000, 'by_state', ('CO', 'UT')), (8000, 'by_type', ('mountain', 'peak')), (5000, 'by_type', ('mount', 'mountain', 'peak'))]
-    num_epochs = 12
-    print("\n++++++++++++++ num_epochs={} ++++++++++++++\n".format(num_epochs))
-    for run_num, run_ in enumerate(runs, start=1):
-        # run_=runs[5]  run_num=5  #TESTING
+    #runs_params is a list of parameter tuples for each model to run
+    runs_params = [(5000, 'by_type_GBC3', ('mount', 'mountain', 'peak')), (8000, 'by_type_GBC2', ('mountain', 'peak')), (5000, 'by_state', ('CO', 'WA', 'UT')), (4000, 'by_state', ('NM', 'UT')), (5000, 'by_state', ('CO', 'WA')), (5000, 'by_state', ('WA', 'NM')), (5000, 'by_state', ('WA', 'UT')), (5000, 'by_state', ('CO', 'UT')), (8000, 'by_type', ('mountain', 'peak')), (5000, 'by_type', ('mount', 'mountain', 'peak'))]
+
+    cnn_params = {'num_epochs': 12, 'batch_size': 128, 'num_filters': 32, 'pool_size': (3,3), 'kernel_size': (4,4), 'input_shape': cnn_image_size, 'dense': 128, 'dropout1': 0.25,  'dropout2': 0.25}
+
+    # get next model# from model_fit_results table
+    conn, cur = get_cursor()
+    query = 'SELECT COALESCE(MAX(model_num), 0) FROM model_fit_results'
+    doquery(cur, query, "SELECT MAX model_num")
+    model_num = cur.fetchone()[0] + 1
+    conn.close()
+
+
+    print("\n++++++++++++++ num_epochs={} ++++++++++++++\n".format(cnn_params['num_epochs']))
+    print("============= Model# {} =============".format(model_num))
+
+    for run_num, run_params in enumerate(runs_params, start=1):
+        # run_params=runs_params[5]  run_num=5  #TESTING
         # if run_num != 4: continue #TESTING
-        numrows_in_each_class, by_state_or_type, labels_filter = run_
-        print("************* {}. Running {} *************".format(run_num, run_))
+        numrows_in_each_class, by_state_or_type, labels_filter = run_params
 
-        cnn = cnn_class()
-        results = cnn.run(images, labels_state, labels_type_str, numrows_in_each_class, by_state_or_type, num_epochs, *labels_filter)
+        # numrows_in_each_class = 5 # TESTING
+        # print("\n\n!!!!!!!!!!!!!!!!!!!! TESTING !!!!!!!!!!!!\n\n: numrows_in_each_class={}".format(numrows_in_each_class))
 
-        print("************* {}. Finished {} ************\n\n".format(run_num, run_))
-    try:
-        print("Saving results...")
-        fn = capstone_folder + "models/results"
-        with open(fn + ".pkl", "wb") as f:
-            pickle.dump(results, f, protocol=pickle.HIGHEST_PROTOCOL)
-        print("Done saving results.  FINISHED!!!!!!!!!")
-    except Exception as ex:
-        print("!!!!!! Error trying to save results !!!!!!!:\n{}".format(ex))
-        sys.exit()
+        print("************* {}. Running {} *************".format(run_num, run_params))
+
+        params = {'comparison': '', 'by_type': by_state_or_type,  'numrows_in_each_class': numrows_in_each_class}
+        params.update(cnn_params)
+        params.update({'num_classes': len(labels_filter)})
+
+        cnn = cnn_class(model_num)
+        by_state_or_type= run_params[1]
+        cnn.run(images, by_state_or_type, labels_state, labels_type_str, *labels_filter, **params)
+
+        print("************* {}. Finished {} ************\n\n".format(run_num, run_params))
 
     print("++++++++ FINISHED PROGRAM ++++++++")

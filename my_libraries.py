@@ -4,7 +4,7 @@ import sys
 
 home = os.getenv("HOME")
 capstone_folder = home + "/dsi/Capstone/"
-images_folder = capstone_folder + "images/"
+images_folder = home + "/dsi/Capstone-images/"
 
 if home == '/Users/edwardwhite': #MacBook
     conn = psycopg2.connect(dbname='summitsdb', host='localhost')
@@ -12,8 +12,8 @@ if home == '/Users/edwardwhite': #MacBook
 elif home == '/home/ed': #Linux
     with open(home +  '/.google/psql', 'r') as f:
         p = f.readline().strip()
-    conn = psycopg2.connect(dbname='summitsdb', host='localhost', user='postgres', password=p)
-    p=''
+    conn = psycopg2.connect(dbname='summitsdb', host='localhost', user='ed', password=p)
+    p = None
 cur = conn.cursor()
 
 def folders():
@@ -22,10 +22,10 @@ def folders():
 def psql_conn():
     return cur, conn
 
-def doquery(curs, query, title):
+def doquery(cur, query, title):
     #best to close conn if error (error leaves conn open), cuz multiple conn open causes problems
     try:
-        curs.execute(query)
+        cur.execute(query)
         cur.connection.commit()
     except Exception as ex:
         print('\n************************* error in {}:\n{}'.format(title, ex))
