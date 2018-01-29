@@ -14,6 +14,8 @@ state       char(2),
 quad        varchar(50)
 );
 
+
+
 CREATE TABLE images (
 summit_id   int,
 image_id    int PRIMARY KEY,
@@ -21,11 +23,11 @@ url         varchar(50),
 filename    varchar(20)
 );
 
-drop table model_fit_results;
 CREATE TABLE model_fit_results (
 model_num               int,
 time_completed          timestamp with time zone,
-test_accuracy           numeric(5, 2),
+cnn_test_accuracy       numeric(5, 2),
+gbc_test_accuracy       numeric(5, 2),
 comparison              varchar(20),
 by_type                 varchar(14),
 numrows_in_each_class   smallint,
@@ -43,8 +45,10 @@ model_filename          varchar(50),
 PRIMARY KEY (model_num, comparison, by_type)
 );
 
-
-
+ALTER TABLE model_fit_results
+ADD COLUMN GBC_test_accuracy numeric(5, 2);
+ALTER TABLE model_fit_results
+RENAME COLUMN GBC_test_accuracy TO gbc_test_accuracy;
 
 ALTER TABLE images
 ADD CONSTRAINT images_summit_id_fkey
@@ -54,9 +58,7 @@ ON UPDATE CASCADE;
 
 INSERT INTO model_fit_results (test_accuracy, time_completed, compare_type, numrows_in_each_class, num_epochs, batch_size, num_filters, pool_size, kernel_size, input_shape, dense, dropout1, dropout2, num_classes) VALUES (0.35733333333333334, TIMESTAMP WITH TIME ZONE '2018-01-24 12:16:31.677598', 'by_type_GBC3', 5000, 12, 128, 32, '{3, 3}', '{4, 4}', '{100, 100, 3}', 128, 0.25, 0.25, 3);
 
-
 SELECT * FROM model_fit_results WHERE model_num = (SELECT MAX(model_num) FROM model_fit_results) ORDER BY model_num DESC, time_completed;
-DELETE FROM model_fit_results;
 
 SELECT COUNT(*) FROM summits WHERE state IS NULL;
 SELECT summit_id, longitude FROM summits WHERE longitude > 0;
@@ -330,9 +332,16 @@ SELECT * FROM summits WHERE LENGTH(state)>2;
 SELECT s.name, s.summit_id, i.image_id FROM summits s INNER JOIN images i ON s.summit_id=i.summit_id
 WHERE name='Inspiration Peak' AND state='WA';
 
-SELECT name, state, elevation, isolation, prominence, s.summit_id, i.image_id
+SELECT name, state, i.image_id
 FROM summits s INNER JOIN images i ON s.summit_id=i.summit_id
-WHERE s.summit_id IN (54046, 48963, 3852)
-    AND image_id IN (48634, 7430, 8325);
+WHERE s.name LIKE '%Mellenthin%';
 
 SELECT * FROM model_fit_results;
+
+SELECT name, summit_id, elevation, isolation, prominence
+FROM summits
+WHERE
+name LIKE '%Mellenthin%' AND state='UT' OR
+name LIKE 'Grays Peak' AND state='CO' OR
+name LIKE 'Animas Peak' AND state='NM' OR
+name LIKE 'Evans, Mount' AND state='CO';

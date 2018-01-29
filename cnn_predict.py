@@ -1,63 +1,79 @@
 import numpy as np
+import pandas as pd
 import sys
 from keras.models import model_from_json
 from process_photos_square_cropped_padded import process_image
 from skimage import io
+import matplotlib.pyplot as plt
+import pickle as pickle
 from my_libraries import *
-from cnn_train import filter_data
+from alchemy_conn import alchemy_engine
 
 capstone_folder, images_folder = folders()
 
-def load_model(image_squaring):
-    # image_squaring="padded"
-    # compare_type = "UT_WA"
-        #read model and weight back in
-    try:
-        print("Reading model from json & h5...")
-        fn = capstone_folder + "models/model_" + image_squaring + "_" + compare_type
-        with open(fn + ".json", "r") as f:
-            loaded_model_json = f.read()
-        model = model_from_json(loaded_model_json)
-        model.load_weights(fn + ".h5")
-        print("done readng model.")
-    except Exception as ex:
-        print("Error trying to read model from json & h5:\n{}".format(ex))
-        sys.exit()
+#use imported alchemy_conn program to generate sqlalchemy connection to summitsdb
+engine = alchemy_engine()
 
-    return model
+#load summits table into pandas df
+df = pd.read_sql_query('''SELECT DISTINCT summit_id, name, elevation, isolation, prominence, type, type_str, state
+FROM summits
+WHERE summit_id IN (12, 17, 16686, 12401)
+''', con=engine)
 
-def predict_state(image_id, state_actual, ):
-    # model_cropped = load_model("cropped")
-    model_padded = load_model("padded")
+comparisons = ['mountain_peak_by_type', 'mount_mountain_peak_by_type', 'CO_UT_by_state', 'WA_NM_by_state']
 
-    filename = images_folder + str(image_id) + ".jpg"
+images_fn = ['Grays Peak CO.jpg', 'Mt. Evans CO.jpg', 'Mount Peale Utah.jpg', 'Animas Peak NM.jpg']
 
-    image = io.imread(filename)
+summit_ids = [12, 17, 16686, 12401]
+
+y_values = [1, 0, 1, 1]
+# comparison='mountain_peak_by_type'  image_fn='Grays Peak CO.jpg'
+# summit_id=12   y_value=1
+for comparison, image_fn, summit_id, y_value in zip(comparisons, images_fn, summit_ids, y_values):
+    model_filename = capstone_folder + "models/cnn_model_1_" + comparison
+    with open(model_filename + ".json", "r") as f:
+        loaded_model_json = f.read()
+    cnn_model = model_from_json(loaded_model_json)
+    cnn_model.load_weights(model_filename + ".h5")
+
+    model_filename = capstone_folder + "models/gbc_model_1_" + comparison
+    with open(model_filename + ".pkl", 'rb') as f:
+        gbc_model = pickle.load(f)
+
+    model_filename = capstone_folder + "models/minmax_1_" + comparison
+    with open(model_filename + ".pkl", 'rb') as f:
+        X_min, X_max = pickle.load(f)
+
+    image_filename = capstone_folder + "test_cnn_images/" + image_fn
+
+    image = io.imread(image_filename)
+    plt.imshow(image)
+    # plt.show()
     image_cropped, image_padded = process_image(image)
     images_padded = np.array(list(image_padded))
 
     images_padded = []
-
-    # images_cropped.append(image_cropped)
     images_padded.append(image_padded)
-
-    #convert lists to np.arrays
     images_padded = np.array(images_padded)
 
-    y_pred_padded = model_padded.predict(images_padded, batch_size=None, verbose=1)
+    y_pred_cnn = 100 * cnn_model.predict(images_padded, batch_size=None, verbose=0, steps=None)
 
-    return y_pred_padded, pct_pred_padded
+    print("y_pred_cnn={:5.1f}%".format(y_pred_cnn[0][y_value]))
+    print("y_pred_cnn={}".format(y_pred_cnn))
 
-if __name__ == "__main__":
-    compare_type = "UT_WA"
-    #test on this image:
-    image_id = 5
-    state = 'WA' #this is what model is trying to predict
-    # type_ = 1
-    # type_str = "mount"
+    X = df[(df['summit_id'] == summit_id)][['elevation', 'isolation', 'prominence']].values
+    # print("type(X)={}\nX={}".format(type(X), X))
 
-    y_pred_padded, pct_pred_padded = predict_state(image_id, state)
+    # y.append(y_value)
 
-    # print("Using cropped image, model predicted chance that state='{}'' is {:4.1f}% .".format(y_pred_cropped[label_actual], pct_pred_cropped))
 
-    print("Using padded image, model predicted chance that state='{}'' is {:4.1f}% .".format(y_pred_padded[1], pct_pred_padded))
+    y = np.array(y_value)
+    # print("X={}, y={}\nX_min={}, X_max={}".format(X, y, X_min, X_max))
+
+    #normalize features data to range 0 - 1
+    X = (X - X_min) / (X_max - X_min)
+
+    y_pred_gbc = gbc_model.predict(X)
+    y_pred_gbc_prob = gbc_model.predict_proba(X)
+    print("y_pred_gbc={}, prob={}".format(y_pred_gbc[0], y_pred_gbc_prob[0][y_value]))
+    print("++++++++++++++++++++++++++++++++++")

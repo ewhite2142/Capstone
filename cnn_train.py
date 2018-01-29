@@ -1,18 +1,22 @@
 import numpy as np
 np.random.seed(1000) #to get consistent results every time--used to test hyperparameter
 
+import pandas as pd
 from sklearn.utils import resample
 import sys
 import pickle as pickle
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import GradientBoostingClassifier
 # import tensorflow as tf
-from my_libraries import *
 from tensorflow import set_random_seed
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers import Flatten, Conv2D, MaxPooling2D
 import os
 import datetime
+from alchemy_conn import alchemy_engine
+from my_libraries import *
 
 set_random_seed(1000)
 
@@ -20,7 +24,7 @@ capstone_folder, images_folder = folders()
 # np.random.RandomState = 1000 #does NOT give consistent results every time--use np.random.seed instead
 
 
-def get_cursor():
+def get_db_conn_cursor():
     '''return psql connection and cursor'''
             #set up connection and cursor to psql summitsdb
     home = os.getenv("HOME")
@@ -56,36 +60,36 @@ class cnn_class(object):
     def __init__(self, model_num):
         self.model_num = model_num
 
-    def filter_data(self, images, labels, *choices):
+    def filter_images(self, images, labels, *labels_filter):
         '''
         INPUT
         images: np array of images
         labels: np array of strings--e.g. either state labels (2 letter abbrev), or "mount"/"mountain"/"peak" for summit type
-        *choices: strings --> unique subset of labels to filter images and labels by
+        *labels_filter: strings --> unique subset of labels to filter images and labels by
 
         OUTPUT
-        np array: subset of images corresponding to labels filtered by *choices
-        np array: subset of labels filtered by *choices, but convertered to integers starting with 0 for first item in choices
-        string: concatenation of each of *choices separated by "_"
-        integer: len(*choices)
+        np array: subset of images corresponding to labels filtered by *labels_filter
+        np array: subset of labels filtered by *labels_filter, but convertered to integers starting with 0 for first item in labels_filter
+        string: concatenation of each of *labels_filter separated by "_"
+        integer: len(*labels_filter)
         list--strings naming each class, sorted alphabetically
 
-        Filter images and lables per *choices, and convert string labels to one hot encoding, e.g.:
+        Filter images and labels per *labels_filter, and convert string labels to one hot encoding, e.g.:
         images = np.array([11, 12, 13, 14, 15])
         labels = np.array(['CO', 'WA', 'CO', 'NM', 'CO'])
-        filter_data(images, labels, 'CO', 'NM') returns:
+        filter_images(images, labels, 'CO', 'NM') returns:
         np.array([11, 13, 14, 15])
         np.array([0, 0, 1, 0])
         'CO_NM'
         2
         ['CO', 'NM']
         '''
-        num_classes = len(choices)
+        num_classes = len(labels_filter)
 
-        if num_classes != len(set(choices)):
-            print("*choices must contiain a unique list, and it is not unique. TERMINATING PROGRAM.")
+        if num_classes != len(set(labels_filter)):
+            print("*labels_filter must contiain a unique list, and it is not unique. TERMINATING PROGRAM.")
             sys.exit()
-        classes = sorted(list(set(choices))) #list of unique classes to be returned
+        classes = sorted(list(set(labels_filter))) #list of unique classes to be returned
 
         X = [] #images to be returned
         y = [] #converted labels to be returned
@@ -94,10 +98,10 @@ class cnn_class(object):
         y_col_index = dict() #key=choice, value=y column index, used below
 
         print("Classes being compared:")
-        for col_index, choice in enumerate(choices):
+        for col_index, choice in enumerate(labels_filter):
             print(col_index, choice)
             if choice not in labels:
-                print("/n/nchoice: {} is not in labels./nMAKE SURE YOU'VE SELECTED THE CORRECT choices FOR THESE labels.\nTERMINATING PROGRAM.".format(choice))
+                print("\n\nchoice: {} is not in labels.\nMAKE SURE YOU'VE SELECTED THE CORRECT labels_filter FOR THESE labels.\nTERMINATING PROGRAM.".format(choice))
                 sys.exit()
 
             y_col_index[choice] = col_index
@@ -105,21 +109,21 @@ class cnn_class(object):
             classes.append(choice)
         comparison = comparison[:-1] #drop last "_" from comparison
 
-        for y_val, (image, label) in enumerate(zip(images, labels)):
-            if label in choices:
+        for image, label in zip(images, labels):
+            if label in labels_filter:
                 X.append(image)
                 y.append(y_col_index[label])
 
         return np.array(X), np.array(y), comparison, num_classes, classes
 
-    # #TEST above
-    # images = np.array([11, 12, 13, 14, 15])
-    # labels = np.array(['CO', 'WA', 'CO', 'NM', 'CO'])
-    # X, y, comparison, num_classes, classes = filter_data(images, labels, 'WA', 'CO')
-    # print ("{}\n{}\n{}\n{}\n{}".format(X, y, comparison, num_classes, classes))
+    #TEST above
+    images = np.array([11, 12, 13, 14, 15])
+    labels = np.array(['CO', 'WA', 'CO', 'NM', 'CO'])
+    X, y, comparison, num_classes, classes = filter_images(None, images, labels, 'CO', 'NM')
+    print ("{}\n{}\n{}\n{}\n{}".format(X, y, comparison, num_classes, classes))
 
 
-    def balance_classes(self, X, y, numrows_in_each_class, num_classes):
+    def balance_classes(self, X, y, numrows_in_each_class, num_classes, images_or_data):
         '''
         INPUT
         X: np array--images
@@ -184,7 +188,7 @@ class cnn_class(object):
                     if j == 0:
                         X_newsamples = np.copy(X_newsample)
                     else:
-                        X_newsample, X_newsamples
+                        # X_newsample, X_newsamples
                         X_newsamples = np.vstack((X_newsamples, X_newsample))
                 # X_newsamples.shape
 
@@ -196,27 +200,25 @@ class cnn_class(object):
                     else:
                         X_newsamples = np.vstack((X_newsamples, X_newsample))
 
-                    # X_newsample.shape, X_newsamples.shape
-                    # X_newsamples = np.append(X_newsamples, X_newsample)
-                # X_newsamples.shape
+                if images_or_data == "images":
+                    #use make_different_image to upsample images
+                    if num_per_class[i] < .5 * numrows_in_each_class:
+                        #split X_newsamples in 2, and apply make_different_image to half of them
+                        half_num_newsamples = int(len(X_newsamples) / 2)
+                        X_newsamples_half1 = X_newsamples[:half_num_newsamples]
+                        X_newsamples_half2 = X_newsamples[half_num_newsamples:]
+                        X_newsamples_half1.shape, X_newsamples_half2.shape
 
-                if num_per_class[i] < .5 * numrows_in_each_class:
-                    #split X_newsamples in 2, and apply make_different_image to half of them
-                    half_num_newsamples = int(len(X_newsamples) / 2)
-                    X_newsamples_half1 = X_newsamples[:half_num_newsamples]
-                    X_newsamples_half2 = X_newsamples[half_num_newsamples:]
-                    X_newsamples_half1.shape, X_newsamples_half2.shape
+                        X_newsamples_half1 = self.make_different_images(X_newsamples_half1)
+                        np.vstack((X_newsamples_half1, X_newsamples_half2))
 
-                    X_newsamples_half1 = self.make_different_images(X_newsamples_half1)
-                    np.vstack((X_newsamples_half1, X_newsamples_half2))
+                        X_newsamples = np.vstack((X_newsamples_half1, X_newsamples_half2))
 
-                    X_newsamples = np.vstack((X_newsamples_half1, X_newsamples_half2))
+                    else: # num_per_class[i] >= .5 * numrows_in_each_class
+                        #flip X_newsamples and before appending them to X_class[i]
+                        X_newsamples = self.make_different_images(X_newsamples)
 
-                else: # num_per_class[i] >= .5 * numrows_in_each_class
-                    #flip X_newsamples and before appending them to X_class[i]
-                    X_newsamples = self.make_different_images(X_newsamples)
-
-                #append new samples to existing ones
+                    #append new samples to existing ones
                 X_class[i] = np.vstack((X_class[i], X_newsamples))
 
 
@@ -236,7 +238,7 @@ class cnn_class(object):
         print()
         # y_class[0].shape, y_class[1].shape
         # X.shape, y.shape
-        # print("balance_classes--after: X.shape {}, y.shape {}".format(X.shape, y.shape))
+        print("balance_classes--after: X.shape {}, y.shape {}".format(X.shape, y.shape))
         return X, y
 
 
@@ -300,8 +302,11 @@ class cnn_class(object):
 
         OUTPUT
         cnn_model: fit with INPUT X_train, y_train
-        float: test_accuracy of of fitted model on X_test, y_test
+        float: cnn_test_accuracy of of fitted model on X_test, y_test
         '''
+        if 1 == 1:
+            print("TESTING !!!!!!!!!!!!!!!!!!!!!!! pass on fit_cnn")
+            sys.exit()
 
         #create Sequential cnn in Keras
         model = Sequential()
@@ -327,30 +332,30 @@ class cnn_class(object):
                       optimizer='nadam', #adadelta
                       metrics=['accuracy'])
 
-        # test_accuracy = (.5, .5)
+        # cnn_test_accuracy = (.5, .5)
         model.fit(X_train, y_train, batch_size=params['batch_size'], epochs=params['num_epochs'], verbose=1, validation_data=(X_test, y_test))
         # X_train.shape, y_train.shape, X_test.shape, y_test.shape
 
         print("Finished model.fit(). Now model.evaluate().")
-        test_accuracy = 100 * model.evaluate(X_test, y_test, verbose=0)[1]
-        print('Test accuracy={} <-------------------------\n'.format(test_accuracy))
-        print("Finished model evaluate(). Now saving data into DB.")
+        cnn_test_accuracy = 100 * model.evaluate(X_test, y_test, verbose=0)[1]
+        print('Test accuracy={} <-------------------------\n'.format(cnn_test_accuracy))
+        print("Finished model evaluate(). Now saving data and model.")
 
         # print("Finished model.evaluate(). Now evaluate_model().")
         # accuracy, recall, precision, f1_score, TP, TN, FP, FN = self.evaluate_model(model, X_test, y_test)
         # print("Finished model.evaluate().")
 
-        conn, cur = get_cursor()
+        conn, cur = get_db_conn_cursor()
 
         fn_prefix = capstone_folder + "models/"
-        model_filename = "model_" + str(self.model_num) + "_" + params['comparison'] + "_" + params['by_type']
+        model_filename = "cnn_model_" + str(self.model_num) + "_" + params['comparison'] + "_by_" + params['type']
 
         #insert results into psql model_fit_results table
-        query = "INSERT INTO model_fit_results (model_num, time_completed, test_accuracy, "
+        query = "INSERT INTO model_fit_results (model_num, time_completed, cnn_test_accuracy, "
 
         for param in params:
             query += param + ", "
-        query += 'model_filename'") VALUES ({}, TIMESTAMP WITH TIME ZONE '{}', {}, ".format(self.model_num, datetime.datetime.now(), test_accuracy)
+        query += 'model_filename'") VALUES ({}, TIMESTAMP WITH TIME ZONE '{}', {}, ".format(self.model_num, datetime.datetime.now(), cnn_test_accuracy)
         for value in params.values():
             if type(value) == str:
                 query += "'{}', ".format(value)
@@ -372,33 +377,127 @@ class cnn_class(object):
         #save model for future use
         model_filename = fn_prefix + model_filename
         try:
-            print("Saving model to json & h5...")
+            print("Saving cnn model to json & h5...")
             with open(model_filename + ".json", "w") as f:
                 f.write(model.to_json())
             model.save_weights(model_filename + ".h5")
             print("Done saving model to json & h5.")
         except Exception as ex:
-            print("!!!!!! Error trying to save model to json & h5 !!!!!!!:\n{}".format(ex))
+            print("!!!!!! Error trying to save cnn model to json & h5 !!!!!!!:\n{}".format(ex))
             sys.exit()
 
-        return model, test_accuracy # model, test_accuracy
+        print("Finished saving data and model.")
+        return model, cnn_test_accuracy # model, cnn_test_accuracy
+
+
+    def run_GradientBoosting(self, df, by_state_or_type, numrows_in_each_class, comparison, *labels_filter):
+        '''
+        INPUT
+        df: DataFrame containing at least state, type_str, elevation, isolation, prominence. state is two letter abbreviation, type_str is string
+        by_state_or_type: string equals either "state" or "type"
+        *labels_filter: list of states or types to filter data by
+
+        OUTPUT
+        '''
+        #filter data per labels_filter
+
+        X = []
+        y = []
+        y_col_index = dict() #key=choice, value=y column index, used below
+
+        if by_state_or_type == "type":
+            by_state_or_type = "type_str"
+        for col_index, choice in enumerate(labels_filter):
+            if choice not in df[by_state_or_type].values:
+                print("\n\nchoice: {} is not in labels.\nMAKE SURE YOU'VE SELECTED THE CORRECT labels_filter FOR THESE labels.\nTERMINATING PROGRAM.".format(choice))
+                sys.exit()
+
+            y_col_index[choice] = col_index
+
+        for i, df_row in df.iterrows():
+            if df_row[by_state_or_type] in labels_filter:
+                X.append(df_row[['elevation', 'isolation', 'prominence']])
+                y.append(y_col_index[df_row[by_state_or_type]])
+
+        X = np.array(X)
+        y = np.array(y)
+
+        num_classes = len(labels_filter)
+        X, y = self.balance_classes(X, y, numrows_in_each_class, num_classes, images_or_data="data")
+
+        #normalize features data to range 0 - 1
+        X_min = X.min(axis=0) #axis=0 -> up and down columns
+        X_max = X.max(axis=0)
+        X = (X - X_min) / (X_max - X_min)
+        minmax = [X_min, X_max]
+
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20)
+
+        model = GradientBoostingClassifier(criterion='friedman_mse', loss='deviance', max_depth=7, max_features='sqrt', n_estimators=200)
+
+        model.fit(X_train, y_train)
+
+        print("Finished GBC model.fit(). Now model.score().")
+        gbc_test_accuracy = 100 * model.score(X_test, y_test)
+        print('Test accuracy={} <-------------------------\n'.format(gbc_test_accuracy))
+        print("Finished model evaluate(). Now saving data and model.")
+
+        conn, cur = get_db_conn_cursor()
+
+        #insert results into psql model_fit_results table
+        if by_state_or_type == "type_str":
+            by_state_or_type = "type"
+        query = '''
+        UPDATE model_fit_results
+        SET gbc_test_accuracy={}
+        WHERE model_num={} AND comparison='{}' AND by_type='{}';
+        '''.format(gbc_test_accuracy, self.model_num, comparison, by_state_or_type)
+        doquery(cur, query, "UPDATE model_fit_results gbc_test_accuracy")
+        # print(query)
+
+        cur.close()
+        conn.close()
+
+        #save gbc model for future use
+        model_filename = capstone_folder + "models/gbc_model_" + str(self.model_num) + "_" + comparison + "_by_" + by_state_or_type
+        try:
+            print("Saving gbc model to pickle...")
+            with open(model_filename + ".pkl", 'wb') as f:
+                pickle.dump(model, f)
+            print("Done saving gbc model to pickle.")
+        except Exception as ex:
+            print("!!!!!! Error trying to save gbc model to pickle !!!!!!!:\n{}".format(ex))
+            sys.exit()
+
+        #save min-max for future use in normalizing data
+        model_filename = capstone_folder + "models/minmax_" + str(self.model_num) + "_" + comparison + "_by_" + by_state_or_type
+        try:
+            print("Saving minmax to pickle...")
+            with open(model_filename + ".pkl", 'wb') as f:
+                pickle.dump(minmax, f)
+            print("Done saving minmax to pickle.")
+        except Exception as ex:
+            print("!!!!!! Error trying to save gbc model to pickle !!!!!!!:\n{}".format(ex))
+            sys.exit()
+
+        print("Finished saving data and model.")
 
 
     def run(self, images, by_state_or_type, labels_state, labels_type_str, *labels_filter, **params):
         '''
         Runs each batch of INPUTs through steps to generate test accuracy results, and save results in model_fit_results table in summitsdb
         '''
-        if by_state_or_type == 'by_state':
-            images, labels, comparison, num_classes, classes = self.filter_data(images, labels_state, *labels_filter)
+        if by_state_or_type == 'state':
+            images, labels, comparison, num_classes, classes = self.filter_images(images, labels_state, *labels_filter)
 
-        elif by_state_or_type == 'by_type':
-            images, labels, comparison, num_classes, classes = self.filter_data(images, labels_type_str, *labels_filter)
+        elif by_state_or_type == 'type':
+            images, labels, comparison, num_classes, classes = self.filter_images(images, labels_type_str, *labels_filter)
 
-        elif by_state_or_type == 'by_type_GBC3':
-            images, labels, comparison, num_classes, classes = self.filter_data(images, labels_type_GBC3, *labels_filter)
+        elif by_state_or_type == 'type_gbc3':
+            images, labels, comparison, num_classes, classes = self.filter_images(images, labels_type_gbc3, *labels_filter)
 
-        elif by_state_or_type == 'by_type_GBC2':
-            images, labels, comparison, num_classes, classes = self.filter_data(images, labels_type_GBC2, *labels_filter)
+        elif by_state_or_type == 'type_gbc2':
+            images, labels, comparison, num_classes, classes = self.filter_images(images, labels_type_gbc2, *labels_filter)
 
         else:
             print("run: by_state_or_type={}--this is an incorrect parameter.\nTERMINATING PROGRAM.".format(by_state_or_type))
@@ -408,7 +507,7 @@ class cnn_class(object):
         print("params={}".format(params))
 
         #balance classes--do this before one hot encoding
-        images, labels = self.balance_classes(images, labels, numrows_in_each_class=params['numrows_in_each_class'], num_classes=params['num_classes'])
+        images, labels = self.balance_classes(images, labels, numrows_in_each_class=params['numrows_in_each_class'], num_classes=params['num_classes'], images_or_data="images")
 
         #convert labels to one hot encoding
         labels =self.one_hot_encode_labels(labels, num_classes)
@@ -428,7 +527,7 @@ class cnn_class(object):
         # print('#train samples={}'.format(X_train.shape[0]))
         # print('#test samples={}'.format(X_test.shape[0]))
 
-        print("Done preparing data and model.\nNow fitting model using {} data.\n".format(image_squaring))
+        print("Done preparing data and model.\nNow fitting cnn model using {} data.\n".format(image_squaring))
 
         # Keras input image dimensions
         print("input_shape={}".format(params['input_shape']))
@@ -450,28 +549,41 @@ if __name__ == "__main__":
     with open(capstone_folder + "pickled_images_labels/labels_type_str.pkl", 'rb') as f:
         labels_type_str = pickle.load(f) #shape=(numrows)
 
-    with open(capstone_folder + "pickled_images_labels/labels_type_GBC3.pkl", 'rb') as f:
-        labels_type_GBC3 = pickle.load(f) #shape=(numrows)
+    with open(capstone_folder + "pickled_images_labels/labels_type_gbc3.pkl", 'rb') as f:
+        labels_type_gbc3 = pickle.load(f) #shape=(numrows)
 
-    with open(capstone_folder + "pickled_images_labels/labels_type_GBC2.pkl", 'rb') as f:
-        labels_type_GBC2 = pickle.load(f) #shape=(numrows)    print("Done reading labels data.")
-    print("Done reading lables data.")
+    with open(capstone_folder + "pickled_images_labels/labels_type_gbc2.pkl", 'rb') as f:
+        labels_type_gbc2 = pickle.load(f) #shape=(numrows)    print("Done reading labels data.")
+    print("Done reading labels data.")
 
     cnn_image_size = (100, 100, 3)
     print("Reading {} images data...".format(image_squaring))
     # the images files are large and take several seconds to load
     fn = "pickled_images_labels/images_"
+    # print("TESTING: skipping reading images data!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
     with open(capstone_folder + fn + image_squaring + ".pkl", 'rb') as f:
         images = pickle.load(f) #shape=(numrows, cnn_image_size[0], cnn_image_size[1], 3)
+
+    #read data into df
+    #use imported alchemy_conn program to generate sqlalchemy connection to summitsdb
+    engine = alchemy_engine()
+
+    #load summits table into pandas df
+    df = pd.read_sql_query('''SELECT DISTINCT summit_id, elevation, isolation, prominence, type_str, state
+    FROM summits
+    WHERE type_str IN ('mount', 'mountain', 'peak')
+    ORDER BY summit_id;''', con=engine)
+
     print("Done reading {} images data.\n".format(image_squaring))
 
     #runs_params is a list of parameter tuples for each model to run
-    runs_params = [(5000, 'by_type_GBC3', ('mount', 'mountain', 'peak')), (8000, 'by_type_GBC2', ('mountain', 'peak')), (5000, 'by_state', ('CO', 'WA', 'UT')), (4000, 'by_state', ('NM', 'UT')), (5000, 'by_state', ('CO', 'WA')), (5000, 'by_state', ('WA', 'NM')), (5000, 'by_state', ('WA', 'UT')), (5000, 'by_state', ('CO', 'UT')), (8000, 'by_type', ('mountain', 'peak')), (5000, 'by_type', ('mount', 'mountain', 'peak'))]
+    runs_params = [(5000, 'type_gbc3', ('mount', 'mountain', 'peak')), (8000, 'type_gbc2', ('mountain', 'peak')), (5000, 'state', ('CO', 'WA', 'UT')), (4000, 'state', ('NM', 'UT')), (5000, 'state', ('CO', 'WA')), (5000, 'state', ('WA', 'NM')), (5000, 'state', ('WA', 'UT')), (5000, 'state', ('CO', 'UT')), (8000, 'type', ('mountain', 'peak')), (5000, 'type', ('mount', 'mountain', 'peak'))]
 
     cnn_params = {'num_epochs': 12, 'batch_size': 128, 'num_filters': 32, 'pool_size': (3,3), 'kernel_size': (4,4), 'input_shape': cnn_image_size, 'dense': 128, 'dropout1': 0.25,  'dropout2': 0.25}
 
     # get next model# from model_fit_results table
-    conn, cur = get_cursor()
+    conn, cur = get_db_conn_cursor()
     query = 'SELECT COALESCE(MAX(model_num), 0) FROM model_fit_results'
     doquery(cur, query, "SELECT MAX model_num")
     model_num = cur.fetchone()[0] + 1
@@ -491,13 +603,25 @@ if __name__ == "__main__":
 
         print("************* {}. Running {} *************".format(run_num, run_params))
 
-        params = {'comparison': '', 'by_type': by_state_or_type,  'numrows_in_each_class': numrows_in_each_class}
+        params = {'comparison': '', 'type': by_state_or_type,  'numrows_in_each_class': numrows_in_each_class}
         params.update(cnn_params)
         params.update({'num_classes': len(labels_filter)})
 
         cnn = cnn_class(model_num)
         by_state_or_type= run_params[1]
-        cnn.run(images, by_state_or_type, labels_state, labels_type_str, *labels_filter, **params)
+        # cnn.run(images, by_state_or_type, labels_state, labels_type_str, *labels_filter, **params)
+
+        # TESTING
+        model_num = 1
+        print("model_num={}".format(model_num))
+        comparison = ''
+        for col_index, choice in enumerate(labels_filter):
+            comparison += choice + "_"
+        params['comparison'] = comparison[:-1] #drop last "_" from comparison
+
+        if 'gbc' not in by_state_or_type:
+            print("Now running GradientBoosing on data.")
+            cnn.run_GradientBoosting(df, by_state_or_type, numrows_in_each_class, params['comparison'], *labels_filter)
 
         print("************* {}. Finished {} ************\n\n".format(run_num, run_params))
 
