@@ -4,11 +4,11 @@ This project attempts to classify mountains \(let's call them "summits"\) into c
 
 Note: Slides for my Capstone presentation can be found here: [https://docs.google.com/presentation/d/1oR0iwLZyZSEdzCkZShvnvSCauiFH91rXPOSVbUvOIE0/edit?usp=sharing](https://docs.google.com/presentation/d/1oR0iwLZyZSEdzCkZShvnvSCauiFH91rXPOSVbUvOIE0/edit?usp=sharing)
 
-As I am an avid hiker, I wondered if there were any convention to why some summits are called a mount \(e.g. "Mount Evans"\), a mountain \("Green Mountain"\), or a peak \("Pikes Peak"\). Apparently, there is no convention on this "summit type", although a few years ago, a college student named Stephen Abegg did a statistical evaluation using elevation, prominence \(how much high the summit is versus the nearest saddle\), and isolation \(distance to the nearest summit\) in a multinomial logistic regression and found a pattern that works most of the time. The pattern is:
+As I am an avid hiker, I wondered if there were any convention to why some summits are called a mount \(e.g. "Mount Evans"\), a mountain \("Green Mountain"\), or a peak \("Pikes Peak"\). Apparently, there is no convention on this "summit type", although a few years ago, a college student named Stephen Abegg did a statistical evaluation using three numbers: elevation, prominence \(how high the summit is versus the nearest saddle\), and isolation \(distance to the nearest summit\) in a multinomial logistic regression and found a pattern that works most of the time. The pattern is:
 
-* Mountains - tend to be lower elevation and rounded
 * Mounts - tend to be high elevation and prominent
-* Peaks - tend  to be pointed with other peaks nearby.
+* Mountains - tend to be lower elevation and rounded
+* Peaks - tend  to be pointed with other summits nearby.
 
 ![alt tag](images/Abegg_writeup.png)
 
