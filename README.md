@@ -12,8 +12,6 @@ As I am an avid hiker, I wondered if there is any convention to why some summits
 
 ![alt tag](images/Abegg_writeup.png)
 
-[https://1e5b58fb-a-61376916-s-sites.googlegroups.com/a/stephabegg.com/website/home/pdfs/SummitTitlesWriteup.pdf?attachauth=ANoY7cqiraPSvxYJHGYSoLPhVCET-aIzYZ\_3Dp0tk2d2SS5dA38nqOAA2vdf0rupYTx8RPFvCd\_Tt5UHyjYk-ejUTFNcGobz0tPMf3j-\_dMvMbt0\_LNB7IHbCehjfcJoEGACWEI48O5YbQOv4D7k-T6ylx4ReA9NHkhh2pfB6Wn0vCLpcpwExAl3s9vdgikKZKn4oyXiBq4xQ-Io8Kxlc3jOtH-Rwf8Hn0mhCXtwcZ-otq3Voy65xyE%3D&attredirects=1](https://1e5b58fb-a-61376916-s-sites.googlegroups.com/a/stephabegg.com/website/home/pdfs/SummitTitlesWriteup.pdf?attachauth=ANoY7cqiraPSvxYJHGYSoLPhVCET-aIzYZ_3Dp0tk2d2SS5dA38nqOAA2vdf0rupYTx8RPFvCd_Tt5UHyjYk-ejUTFNcGobz0tPMf3j-_dMvMbt0_LNB7IHbCehjfcJoEGACWEI48O5YbQOv4D7k-T6ylx4ReA9NHkhh2pfB6Wn0vCLpcpwExAl3s9vdgikKZKn4oyXiBq4xQ-Io8Kxlc3jOtH-Rwf8Hn0mhCXtwcZ-otq3Voy65xyE%3D&attredirects=1 "Click here for Abegg&apos;s full report")
-
 My idea is to see if a convolutional neural network \("CNN"\), an advanced algorithm used for classifying images, can replicate the results of the numeric regression model. While I'm at it, I thought I'd try to see the the CNN could classify the photos as to whether they are in one state or another \(e.g. Washington or New Mexico\).
 
 ### Overview of Process
