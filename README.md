@@ -1,10 +1,10 @@
-## **Classifying Mountains with Photos and Neural Networks**
+## **Classifying Mountains Using Neural Networks**
 
 This project attempts to classify mountains \(let's call them "summits"\) into certain categories, specifically \(i\) whether the summit is a named a "Mount", "Mountain", or "Peak", or \(ii\) which state the summit is in.
 
 Note: Slides for my Capstone presentation can be found here: [https://docs.google.com/presentation/d/1oR0iwLZyZSEdzCkZShvnvSCauiFH91rXPOSVbUvOIE0/edit?usp=sharing](https://docs.google.com/presentation/d/1oR0iwLZyZSEdzCkZShvnvSCauiFH91rXPOSVbUvOIE0/edit?usp=sharing)
 
-As I am an avid hiker, I wondered if there is any convention to why some summits are called a mount \(e.g. "Mount Evans"\), a mountain \("Green Mountain"\), or a peak \("Pikes Peak"\). Apparently, there is no naming convention for summit type, although a few years ago, a college student named Stephen Abegg did a statistical evaluation using three numbers, elevation, prominence \(how high the summit is versus the nearest saddle\), and isolation \(distance to the nearest summit\), in a multinomial logistic regression and found a pattern that works most of the time. The pattern is:
+As I am an avid hiker, I wondered if there is any convention to why some summits are called a mount \(e.g. "Mount Evans"\), a mountain \("Green Mountain"\), or a peak \("Pikes Peak"\). Apparently, there is no naming convention for summit type, although a few years ago, a college student named Stephen Abegg did a statistical evaluation using three numbers, elevation, isolation \(distance to the nearest summit\), and prominence \(how high the summit is versus the nearest saddle\), in a multinomial logistic regression and found a pattern that works most of the time. The pattern is:
 
 * Mounts - tend to be high elevation and prominent
 * Mountains - tend to be lower elevation and rounded
@@ -12,7 +12,7 @@ As I am an avid hiker, I wondered if there is any convention to why some summits
 
 ![alt tag](images/Abegg_writeup.png)
 
-My idea is to see if a convolutional neural network \("CNN"\), an advanced algorithm used for classifying images, can replicate the results of the statistical regression model. While I'm at it, I thought I'd try to see the the CNN could classify the photos as to whether they are in one state or another (e.g. Washington or New Mexico).
+My idea is to see if a convolutional neural network \("CNN"\), an advanced algorithm used for classifying images, can replicate the results of the numeric regression model. While I'm at it, I thought I'd try to see the the CNN could classify the photos as to whether they are in one state or another \(e.g. Washington or New Mexico\).
 
 ### Overview of Process
 
@@ -24,7 +24,6 @@ My idea is to see if a convolutional neural network \("CNN"\), an advanced algor
   * Preprocess the photos
   * Fit the model on various classifications \(by state or summit type\)
   * Run the fitted model on selected photo or photos of a given mountain and show the predicted classification
-  * Build a user interface \("UI"\) so that anyone can pick a mountain in the database or  upload their own photo and see how the model classifies it.
 
 ### Data
 
@@ -41,11 +40,11 @@ I obtained all of my data from the listsofjohn.com website. listsofjohn is a web
 
 **Numpy Arrays**--For the CNN to process a photo, the photo is loaded into the program as an array of RGB numbers ranging from 0-255 representing the intensity of the colors of red, green, and blue. I used a widely-used library in Python called Numpy to manipulate the arrays.
 
-**Cropping versus Zero-Padding**--As the CNN functions substantially more efficiently if all the photos are the same size, the photos, which came in varying sizes, needed to be resized to the same size. This could be done either by cropping the photos \(cutting off the edges\) on the sides where they are larger than my chosen standard photo size, or "zero-padding" could be added to the shorter sides to make them bigger. I tried it both ways to see which would work best.
+**Cropping versus Zero-Padding**--As the CNN functions substantially more efficiently if all the photos are the same size, the photos, which could have varying sizes, needed to be resized to the same size. This could be done either by cropping the photos \(cutting off the edges\) on the sides where they are larger than my chosen standard photo size, or "zero-padding" could be added to the shorter sides to make them bigger. I tried both ways, and the padded photos provided the best results.
 
 **Downsize Photos**--CNN's use a considerable amount of computer processing power, and to make it easier on the computer, the photos were all downsized to the 100 x 100 pixels.
 
-**Normalize Features**--The number in the array need to be converted to a standardized range \(I choose between 0 and 1\) in order for the CNN to work best. This was similarly done in the numerical classification \(gradient boosting was the best performer\)..
+**Normalize Features**--The numbers in the array need to be converted to a standardized range \(I choose between 0 and 1\) in order for the CNN to work best. This was similarly done in the numerical classification.
 
 **One Hot Encoding**--The CNN requires that classes of data be encoded with one hot vectors. For example, if it is comparing whether a summit is in CO versus WA, a summit in CO would be coded as \[1, 0\] and one in WA as \[0, 1\].
 
@@ -53,9 +52,9 @@ I obtained all of my data from the listsofjohn.com website. listsofjohn is a web
 
 ![alt tag](images/results_table_.png)
 
-Thirteen different numerical classifiers were tried on the numerical data \(elevation, isolation, and prominence\) to try to classify the summits by type. The classifier with the best performance was the gradient boosting classifier \(GBC\), which had 83% accuracy picking between a Mountain or a Peak on the test set data, but only 58% accuracy picking among Mount, Mountain, or Peak.
+Thirteen different statistical classifiers were tried on the numerical data \(elevation, isolation, and prominence\) to try to classify the summits by type. The classifier with the best performance was the gradient boosting classifier \(GBC\), which had 83% accuracy picking between a Mountain or a Peak on the test set data, but only 58% accuracy picking among Mount, Mountain, or Peak. The results of the GBC were compared to the results of the CNN classification.
 
-Recall that the data included images for 9,293 Mountains and 8,291 Peaks, but for only 2,516 Mounts. The number of Mounts is not quite sufficient to do a good comparison with a CNN, although upsampling was used to help. Therefore, both a two-way comparison of Mountain versus Peak was done, with each class resampled to 8000 summits each, as well as a three summit type comparison resampled to 5000 summits each. As with the gradient boosting classifier, the accuracy of the CNN was better on the two-way comparison \(60%\) versus the three-way \(41%\), but this performance is unimpressive and it significantly underperformed the GBC.
+Recall that the data included images for 9,293 Mountains and 8,291 Peaks, but for only 2,516 Mounts. The number of Mounts is not quite sufficient to do a good comparison with a CNN, so upsampling was used to address this. Both a two-way comparison of Mountain versus Peak was done, with each class resampled to 8000 summits each, as well as a three summit type comparison resampled to 5000 summits each. As with the gradient boosting classifier, the accuracy of the CNN was better on the two-way comparison \(60%\) versus the three-way \(41%\), but this performance is unimpressive and it significantly underperformed the GBC.
 
 The CNN did much better on a two-way state-by-state comparison. As shown above, three of the state-by-state comparisons had over 80% accuracy, and another had 64% accuracy. CO versus UT had the lowest accuracy \(51%\), perhaps because the summits in western CO \(including the Colorado National Monument\) are similar to the arches and other summits in UT, and CO and UT are border states. WA is the furthest north and NM is the furthest south among the states compared, and that comparison performed the best at 84% accuracy.
 
@@ -63,6 +62,6 @@ Remarkably, when the CNN compared three states, CO or WA or UT, it obtained 63% 
 
 ![alt tag](images/cnn_gbc_labels.png)
 
-As mentioned above, the classification of mountain types by Mount, Mountain, or Peak is not a standard by any official organization, but a naming convention that works with less than 60% accuracy using the gradient boosting classifier. Therefore, one might not expect the CNN classifier to do any better \(it does not\). However, I had the idea of using the predict function of the GBC classifier to generate labels that were used for the CNN classifier. This way, we could see if the poor performance of the CNN in comparing summit types was due to mislabeling, or that the CNN was simply incapable of making the distinction. As shown above, using the GBC generated labels had a slightly NEGATIVE effect on the the results. I expected an improvement in the results, so I am surprised by this outcome.
+As mentioned above, the classification of mountain types by Mount, Mountain, or Peak is not a standard by any official organization, and the gradient boosting classifier had less than 60% accuracy in classifying among these three. Therefore, it is not surprising that the CNN classifier does not do any better. However, I had the idea of using the predict function of the GBC classifier to generate labels that were used for the CNN classifier--in effect renaming the summits in accordance with the elevation/isolation/prominence convention. This way, we could see if the poor performance of the CNN in comparing summit types was due to being trained and tested against inconsistent labels, or that the CNN was simply incapable of making the distinction due to insufficient information in the photos. As shown above, contrary to my expectations, using the GBC generated labels had a slightly NEGATIVE effect on the the results, suggesting the photos do not contain enough information for the CNN to distinguish among the three mountain types.
 
-If, in fact,  the elevation, isolation, and prominence of the summits determines its naming convention, then the photos would have to show this. In particular, the photos would need to show the summits with their surrounding summits nearby. Some of the photos do this, but others do not.
+If, in fact,  the elevation, isolation, and prominence of the summits determines its naming convention, then the photos would have to show this. In particular, the photos would need to show the summits with their surrounding summits nearby. A few of the photos do this, but others do not.
