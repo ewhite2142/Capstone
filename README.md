@@ -51,7 +51,7 @@ I obtained all of my data from the listsofjohn.com website. listsofjohn is a web
 
 ### Results
 
-![alt tag](images/results_table.png)
+![alt tag](images/results_table_.png)
 
 Thirteen different numerical classifiers were tried on the numerical data \(elevation, isolation, and prominence\) to try to classify the summits by type. The classifier with the best performance was the gradient boosting classifier \(GBC\), which had 83% accuracy picking between a Mountain or a Peak on the test set data, but only 58% accuracy picking among Mount, Mountain, or Peak.
 
