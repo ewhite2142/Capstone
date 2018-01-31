@@ -47,7 +47,7 @@ I obtained all of my data from the listsofjohn.com website. listsofjohn is a web
 
 **Normalize Features**--The number in the array need to be converted to a standardized range \(I choose between 0 and 1\) in order for the CNN to work best. This was similarly done in the numerical classification \(gradient boosting was the best performer\)..
 
-**One Hot Encoding**--The cnn requires that classes of data be encoded with one hot vectors. For example, if it is comparing whether a summit is in CO versus WA, a summit in CO would be coded as \[1, 0\] and one in WA as \[0, 1\].
+**One Hot Encoding**--The CNN requires that classes of data be encoded with one hot vectors. For example, if it is comparing whether a summit is in CO versus WA, a summit in CO would be coded as \[1, 0\] and one in WA as \[0, 1\].
 
 ### Results
 
