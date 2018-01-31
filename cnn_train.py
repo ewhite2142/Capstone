@@ -1,3 +1,6 @@
+'''
+This is the main module for running the convolutional neural network (CNN). It reads in the pickled data from process_photos_square_padded.py (using the padded photos, which gave the best results--images are made square using zero-padding, then resized to 100x100 pixels), filters them per the criteria in the runs_params list in the __main__ section, balances the number of rows in each class, splits the data into 80%/20% training/test sets, fits the CNN on the training data, and provides the accuracy results from the test set. The fitted models are saved in JSON files for future use in predicting individual photos.
+'''
 import numpy as np
 np.random.seed(1000) #to get consistent results every time--used to test hyperparameter
 
@@ -8,8 +11,7 @@ import pickle as pickle
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import GradientBoostingClassifier
-# import tensorflow as tf
-from tensorflow import set_random_seed
+from tensorflow import set_random_seed #needed in addition to np.random.seed() to get consisitent results for testing hyperparameters
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation
 from keras.layers import Flatten, Conv2D, MaxPooling2D
@@ -25,7 +27,7 @@ capstone_folder, images_folder = folders()
 
 
 def get_db_conn_cursor():
-    '''return psql connection and cursor'''
+    '''return psql connection and cursor to the PSQL summitsdb'''
             #set up connection and cursor to psql summitsdb
     home = os.getenv("HOME")
     if home == '/Users/edwardwhite': #MacBook
@@ -39,26 +41,35 @@ def get_db_conn_cursor():
     return conn, conn.cursor()
 
 
-#I learned the hard way...This psycopg2 function has to be within the same class and module as it is being run it; otherwise, results from SQL queries will be non-existant even with no exception thrown.
-def doquery(cur, query, title):
-    #best to close conn if error (error leaves conn open), cuz multiple conn open causes problems
+def doquery(cur, query, errmsg):
+    '''
+    INPUT
+    cur: cursor to the PSQL database
+    query: SQL query string
+    errmsg: string to display if an error occurs during query execution
+
+    When an error occurs during query execution, it usually leaves the DB connection open, and having too many open connections can cause a problem. This function uses try-except and closes the connection if an error occurs.
+    '''
     try:
         cur.execute(query)
         cur.connection.commit()
     except Exception as ex:
-        print('\n********************************************* error in {}\n{}'.format(title, ex))
+        print('\n********************************************* error in {}\n{}'.format(errmsg, ex))
         cur.connection.close()
         sys.exit()
 
 
 class cnn_class(object):
     '''
-    Generates and saves in json files fitted cnn models on images (np arrays) dataset previously prepared (made into standard sqaure size, and downsized to 100x100 pixels) by a process_photos module and saved
+    Generates and saves in json files fitted cnn models on images (np arrays) dataset previously processed.
 
-    Each image input and processed in this module has shape(rows of images, 100, 100, 3). 100x100x3 is an image of numrows horizontal, numcols vertical, and 3 colors RGB--this is the tensorflow input_shape, as opposed to the theano shape of 3x100x100, which is not used here.
+    The array of images read into this class has shape (rows of images, 100, 100, 3). 100x100x3 is an image of number pixels horizontal, number pixels vertical, and 3 colors RGB--this is the tensorflow input_shape, as opposed to the theano shape of 3xhorizonalxvertial, which is not used here.
     '''
     def __init__(self, model_num):
+        '''This class is run with a specific set of cnn hyperparameters, and each unique hyperparameter set is designated with a sequential integer model_num. The fitted models are saved to a filename that includes the model_num.
+        '''
         self.model_num = model_num
+
 
     def filter_images(self, images, labels, *labels_filter):
         '''
@@ -70,8 +81,8 @@ class cnn_class(object):
         OUTPUT
         np array: subset of images corresponding to labels filtered by *labels_filter
         np array: subset of labels filtered by *labels_filter, but convertered to integers starting with 0 for first item in labels_filter
-        string: concatenation of each of *labels_filter separated by "_"
-        integer: len(*labels_filter)
+        string: concatenation of each of *labels_filter separated by "_"--used in identifying which comparison was done, e.g. in the saved model's filename
+        integer: len(*labels_filter), i.e. the number of classes compared
         list--strings naming each class, sorted alphabetically
 
         Filter images and labels per *labels_filter, and convert string labels to one hot encoding, e.g.:
@@ -116,58 +127,41 @@ class cnn_class(object):
 
         return np.array(X), np.array(y), comparison, num_classes, classes
 
-    #TEST above
-    images = np.array([11, 12, 13, 14, 15])
-    labels = np.array(['CO', 'WA', 'CO', 'NM', 'CO'])
-    X, y, comparison, num_classes, classes = filter_images(None, images, labels, 'CO', 'NM')
-    print ("{}\n{}\n{}\n{}\n{}".format(X, y, comparison, num_classes, classes))
+
+    # #TEST above
+    # images = np.array([11, 12, 13, 14, 15])
+    # labels = np.array(['CO', 'WA', 'CO', 'NM', 'CO'])
+    # X, y, comparison, num_classes, classes = filter_images(None, images, labels, 'CO', 'NM')
+    # print ("{}\n{}\n{}\n{}\n{}".format(X, y, comparison, num_classes, classes))
 
 
     def balance_classes(self, X, y, numrows_in_each_class, num_classes, images_or_data):
         '''
         INPUT
-        X: np array--images
-        y: np array--integer labels (not yet one hot encoded)
-        num_classes int--# unique values in y
+        X: np array--images or numerical features (elevation, isolation, prominence)
+        y: np array--integer labels
+        num_classes: int--# unique values in y
         numrows_in_each_class: int--desired size of each class
-
+        images_or_data: string--if "images", upsampling includes flipping images horizontally--this flipping doesn't apply when balance
         OUTPUT:
         X, y: np.arrays with numrows_in_each_class number of rows for each class
 
-        Makes X, y have same number of rows (INPUT num_classes) for each class in y. To extent upsampling is required, some of the new images added are flipped horizontally.
+        Makes X, y have same number of rows, numrows_in_each_class, for each class in y. if images_or_data=="images", to the extent upsampling is required, some of the new images added are flipped horizontally.
         '''
-        # X = images #TESTING
-        # y = labels #TESTING
-        # images.shape, labels.shape
-        # if 1 == 1:
-        #     print("balance_classes: STOPPING EARLY for testing.")
-        #     sys.exit() # TESTING
-        # X = np.arange(21).reshape(7,1,1,3)
-        # y = np.array([0,1,2,0,0,0,1])
-        # numrows_in_each_class = 13
-        # y.shape, X.shape
-        # X
-        # y
-        # print("\nbalance_classes--before: X.shape {}, y.shape {}".format(X.shape, y.shape))
-        classes = np.unique(y)
+        classes = np.unique(y) #number of unique classes
         # print("classes: {}".format(classes))
         num_per_class = np.zeros((num_classes), dtype=int)
         X_class = [] #each element of list = features for that class
         y_class = [] #each element of list = labels for that class
-        # value = 0
-        # i = 0
+
         for i, value in enumerate(classes):
             indices = np.where(y == value)[0]
             X_class.append(X[indices]) # features for this class
-            y_class.append(np.full(numrows_in_each_class, value, dtype=int)) # labels for this class i. Goal is to make each X_class[i] and y_class[i] have num_classes rows each, with some of the new X_class[i] images that may be added flipped horizontally. Each y_class[i] has same labels, so order of rows within each X_class[i] doesn't matter. Each X_class[i] and y_class[i] are reassembled at end of this function in order of i's to maintain feature-label consistency.
+            y_class.append(np.full(numrows_in_each_class, value, dtype=int)) # labels for this class i. Goal is to make each X_class[i] and y_class[i] have numrows_in_each_class each, with some of the new X_class[i] images that may be added flipped horizontally. Each y_class[i] has same labels, so order of rows within each X_class[i] doesn't matter. Each X_class[i] and y_class[i] are reassembled at end of this function in order of i's to maintain feature-label consistency.
             num_per_class[i] = indices.size
-            # X_class[0].shape, y_class[0].shape
-            # X_class[1].shape, y_class[1].shape
 
         #for each class in X, make that class have numrows_in_each_class number of rows
         for i, num in enumerate(num_per_class):
-            # i = 0   i = 1
-            # num = num_per_class[i]
             if num == numrows_in_each_class:
                 continue #already correct size, so no adjustment needed
 
@@ -181,17 +175,15 @@ class cnn_class(object):
                 num_iters_upsample = int(numrows_in_each_class / num) - 1
                 num_addition_upsamples = numrows_in_each_class % num
 
-                # j=0  j=1
                 for j in range(num_iters_upsample):
                     X_newsample = resample(X_class[i], replace = False, n_samples=num) #random_state set in np.random.seed at top
 
                     if j == 0:
                         X_newsamples = np.copy(X_newsample)
                     else:
-                        # X_newsample, X_newsamples
                         X_newsamples = np.vstack((X_newsamples, X_newsample))
-                # X_newsamples.shape
 
+                #remainder of number rows needed to upsample
                 if num_addition_upsamples > 0:
                     X_newsample = resample(X_class[i], replace = False, n_samples=num_addition_upsamples) #random_state set in np.random.seed at top
 
@@ -201,7 +193,7 @@ class cnn_class(object):
                         X_newsamples = np.vstack((X_newsamples, X_newsample))
 
                 if images_or_data == "images":
-                    #use make_different_image to upsample images
+                    '''If existing number of rows is less than 50% of existing rows, then the new images added will be half resampled original images, and half horizontally flipped images'''
                     if num_per_class[i] < .5 * numrows_in_each_class:
                         #split X_newsamples in 2, and apply make_different_image to half of them
                         half_num_newsamples = int(len(X_newsamples) / 2)
@@ -214,30 +206,19 @@ class cnn_class(object):
 
                         X_newsamples = np.vstack((X_newsamples_half1, X_newsamples_half2))
 
-                    else: # num_per_class[i] >= .5 * numrows_in_each_class
-                        #flip X_newsamples and before appending them to X_class[i]
+                    else:
+                        '''If existing number of rows is more than 50% of existing rows, then all new images added will be flipped horizontally'''
                         X_newsamples = self.make_different_images(X_newsamples)
 
                     #append new samples to existing ones
                 X_class[i] = np.vstack((X_class[i], X_newsamples))
 
 
-            # print("X_class[{}].shape[0]={}, y_class[{}].size={} vs numrows_in_each_class={}".format(i, X_class[i].shape[0], i, y_class[i].size, numrows_in_each_class))
-            #X_class[i] and y_class[i] now should have numrows_in_each_class samples each
-        # X_class_temp = X_class
-        # y_class_temp = y_class
-        #
-        # X_class = X_class_temp
-        # y_class = y_class_temp
-
-        #recombine the separate classes
-        # print("balance_classes: y_class[0].shape={}, y_class[1].shape={}".format(y_class[0].shape, y_class[1].shape))
-
+        #X_class[i] and y_class[i] now should have numrows_in_each_class rows each
+        #recombine the separate classes onto one np array
         X = np.vstack((X_class[i] for i in range(num_classes)))
         y = np.vstack((np.array(y_class[i]) for i in range(num_classes))).reshape(numrows_in_each_class *  num_classes)
         print()
-        # y_class[0].shape, y_class[1].shape
-        # X.shape, y.shape
         print("balance_classes--after: X.shape {}, y.shape {}".format(X.shape, y.shape))
         return X, y
 
@@ -257,16 +238,17 @@ class cnn_class(object):
 
     def one_hot_encode_labels(self, y_not_categ, num_classes):
         '''
-        INPUT: np array of integer labels
+        INPUT
+        y_not_categ: np array of integer labels
+        num_clases: integer representing number of unique labels
+
         OUTPUT: np array of one hot encoded labels
 
         Turn integer labels into one hot encoded labels, e.g.
         one_hot_encode_labels(np.array([0, 0, 1, 0]), 2) returns:
         np.array([1, 0], [1, 0], [0, 1], [1, 0])
         '''
-        # y_not_categ = np.array([0, 0, 1, 0])
-        # num_classes = 2
-        y = np.zeros((len(y_not_categ), len(np.unique(y_not_categ))))
+        y = np.zeros((len(y_not_categ), num_classes))
         for y_row, y_val in enumerate(y_not_categ):
             y[y_row, y_val] = 1
         return np.array(y)
@@ -301,13 +283,8 @@ class cnn_class(object):
 
 
         OUTPUT
-        cnn_model: fit with INPUT X_train, y_train
-        float: cnn_test_accuracy of of fitted model on X_test, y_test
+        no output, although fitted modesl are saved to JSON files, and accuracy results are store in model_fit_results table of summitsdb
         '''
-        if 1 == 1:
-            print("TESTING !!!!!!!!!!!!!!!!!!!!!!! pass on fit_cnn")
-            sys.exit()
-
         #create Sequential cnn in Keras
         model = Sequential()
         # 2 convolutional layers followed by a pooling layer followed by dropout
@@ -315,47 +292,44 @@ class cnn_class(object):
         model.add(Activation('relu'))
 
         model.add(Conv2D(filters=params['num_filters'], kernel_size=params['kernel_size']))
-
         model.add(Activation('relu'))
+
         model.add(MaxPooling2D(pool_size=params['pool_size']))
         model.add(Dropout(params['dropout1']))
 
         # transition to an mlp
         model.add(Flatten())
-        model.add(Dense(params['dense'])) #128 #400
+        model.add(Dense(params['dense']))
         model.add(Activation('relu'))
-        model.add(Dropout(params['dropout2'])) #0.5
+        model.add(Dropout(params['dropout2']))
         model.add(Dense(params['num_classes']))
-        model.add(Activation('softmax'))
+        model.add(Activation('softmax')) #provides final probability of each class
 
         model.compile(loss='categorical_crossentropy',
-                      optimizer='nadam', #adadelta
+                      optimizer='nadam', #nadam worked best in my experiments
                       metrics=['accuracy'])
 
         # cnn_test_accuracy = (.5, .5)
         model.fit(X_train, y_train, batch_size=params['batch_size'], epochs=params['num_epochs'], verbose=1, validation_data=(X_test, y_test))
-        # X_train.shape, y_train.shape, X_test.shape, y_test.shape
 
         print("Finished model.fit(). Now model.evaluate().")
         cnn_test_accuracy = 100 * model.evaluate(X_test, y_test, verbose=0)[1]
         print('Test accuracy={} <-------------------------\n'.format(cnn_test_accuracy))
         print("Finished model evaluate(). Now saving data and model.")
 
-        # print("Finished model.evaluate(). Now evaluate_model().")
-        # accuracy, recall, precision, f1_score, TP, TN, FP, FN = self.evaluate_model(model, X_test, y_test)
-        # print("Finished model.evaluate().")
-
+        #save acccuray results and model parameters in summitsdb
         conn, cur = get_db_conn_cursor()
 
         fn_prefix = capstone_folder + "models/"
         model_filename = "cnn_model_" + str(self.model_num) + "_" + params['comparison'] + "_by_" + params['type']
 
-        #insert results into psql model_fit_results table
         query = "INSERT INTO model_fit_results (model_num, time_completed, cnn_test_accuracy, "
 
         for param in params:
             query += param + ", "
+
         query += 'model_filename'") VALUES ({}, TIMESTAMP WITH TIME ZONE '{}', {}, ".format(self.model_num, datetime.datetime.now(), cnn_test_accuracy)
+
         for value in params.values():
             if type(value) == str:
                 query += "'{}', ".format(value)
@@ -368,7 +342,7 @@ class cnn_class(object):
             else:
                 query += "{}, ".format(value)
         query += "'{}');".format(model_filename)
-        # print("query={}".format(query))
+
         doquery(cur, query, "INSERT INTO model_fit_results")
 
         cur.close()
@@ -398,6 +372,9 @@ class cnn_class(object):
         *labels_filter: list of states or types to filter data by
 
         OUTPUT
+        Nothing is returned.
+
+        The sklearn GradientBoostingClassifier is run on the data in the df dataframe. Similar to cnn_fit(), accuracy results are saved in the model_fit_results table in summitsdb, and the model is saved in a pickle file, and also the minimum/maximum of the data ranges are stores for future use in normalizing data for individual photos that might be examined in cnn_predict.
         '''
         #filter data per labels_filter
 
@@ -442,9 +419,9 @@ class cnn_class(object):
         print('Test accuracy={} <-------------------------\n'.format(gbc_test_accuracy))
         print("Finished model evaluate(). Now saving data and model.")
 
+        #save results to DB
         conn, cur = get_db_conn_cursor()
 
-        #insert results into psql model_fit_results table
         if by_state_or_type == "type_str":
             by_state_or_type = "type"
         query = '''
@@ -485,8 +462,20 @@ class cnn_class(object):
 
     def run(self, images, by_state_or_type, labels_state, labels_type_str, *labels_filter, **params):
         '''
-        Runs each batch of INPUTs through steps to generate test accuracy results, and save results in model_fit_results table in summitsdb
+        INPUT
+        images: numpy arrays representing preprocessed images from process_photos_square_padded module
+        by_state_or_type: string representing what type of comparison is being done, e.g. "state" for state-by-state comparison, or "type" for mountain/mount/peak comparison
+        labels_state: labels for state comparison
+        labels_type_str: string labels for type comparison
+        *labels_filter: labels that type comparison is based on, e.g. "CO", "UT" would compare the data for CO verus UT. "type_gbc3" or "type_gbc2" have labels generated by GradientBoostingClassifier
+        **params: parameters for CNN and other functions for this class
+
+        OUTPUT
+        Nothing is returned
+
+        Runs each batch of INPUTs through above functon in this class to generate test accuracy results, and save results in model_fit_results table in summitsdb
         '''
+        #filter images/labels per labels_filter
         if by_state_or_type == 'state':
             images, labels, comparison, num_classes, classes = self.filter_images(images, labels_state, *labels_filter)
 
@@ -531,7 +520,8 @@ class cnn_class(object):
 
         # Keras input image dimensions
         print("input_shape={}".format(params['input_shape']))
-        #fit model
+
+        #fit cnn model on train data using **params, evaluate on test data, save results and model
         self.fit_cnn(X_train, y_train, X_test, y_test, **params)
 
 
