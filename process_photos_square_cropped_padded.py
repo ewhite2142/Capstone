@@ -2,9 +2,9 @@
 This module takes each photo file listed in summitsdb and preprocesses it for input into cnn_train.py. The preprocessing includes:
 1. reading the file using io.imread
 2. confirm the file has enough pixels so that it is not a corrupt file
-3. each image is made square by two different methods: cropping the longest side (e.g. if horizontal is longer than vertical, horizontal is cropped to vertical size), and by using zero padding on the shorter side (e.g. if horizontal is longer than vertical, the difference between the two is split in half, and an array of zeros with the horizontal width is added to the top and botton of the photo to make it square
+3. each image is made square by two different methods: cropping the longest side (e.g. if horizontal is longer than vertical, horizontal is cropped to the vertical size), and by using zero padding on the shorter side (e.g. if horizontal is longer than vertical, the difference between the two is split in half, and an array of zeros with the half height and the same horizontal width is added to the top and botton of the photo to make it square
 4. each image is downsized to 100x100x3 pixels
-5. the cropped and zero padded images, as np arrays, are saved as pickle files for later use in cnn_train.py
+5. the cropped and zero padded images, as np arrays, and the labels (state and mountain type, as sequential integers also in np arrays), are saved into pickle files for later use in cnn_train.py
 
 NOTE: After experimentation, the zero padded images provided much better results than the cropped images, so ultimately only the zero padded images were used.
 '''
