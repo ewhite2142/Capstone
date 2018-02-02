@@ -1,4 +1,4 @@
-'''read state of summit from google geocoding for each summit_id in summits table where Excel spreadsheet listed more than one state'''
+'''read state of summit from google geocoding for each summit_id in summits table where listsofjohn Excel spreadsheet listed more than one state'''
 import psycopg2
 import datetime as dt
 import googlemaps
