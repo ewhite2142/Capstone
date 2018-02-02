@@ -15,7 +15,6 @@ quad            varchar(50)
 );
 
 
-
 CREATE TABLE images (
 summit_id   int,
 image_id    int PRIMARY KEY,
@@ -117,23 +116,17 @@ WHERE
 
 SELECT COUNT(*) FROM summits
 WHERE state IS NULL OR counties IS NULL;
-####################################################
-
-SELECT * FROM model_fit_results WHERE model_num = (SELECT MAX(model_num) FROM model_fit_results) ORDER BY model_num DESC, time_completed;
 
 SELECT COUNT(*) FROM summits WHERE state IS NULL;
 SELECT summit_id, longitude FROM summits WHERE longitude > 0;
-
-SELECT COUNT(*) "Total #summits in summits TABLE" FROM summits;
-SELECT COUNT(DISTINCT summit_id) "#Total #summits in images table" FROM images;
-SELECT COUNT(*) "Total #images in images table" FROM images;
-
-SELECT s.type_str, COUNT(s.summit_id) "#summits", COUNT(i.image_id) "#images"
-FROM images i INNER JOIN summits s ON i.summit_id=s.summit_id
-GROUP BY type_str;
+SELECT * FROM summits WHERE LENGTH(state)>2;
+SELECT DISTINCT state FROM summits ORDER BY state;
+SELECT EXISTS (SELECT summit_id from summits where summit_id<0);
+####################################################
 
 
 ##################################################
+# some image files were corrupt and could not be loaded, so move them out of summits and images tables
 #MOVE bad images into new tables, bad_images and bad_summits
 CREATE TABLE bad_images
 AS TABLE images
@@ -142,13 +135,8 @@ WITH NO DATA;
 INSERT INTO bad_images
 SELECT * FROM images WHERE image_id IN (1000,2000,3000,4000,5000,6000,7000,8000,8186,8374,8739,9000,10000,10255,10422,10647,10667,10670,10671,10672,11000,11065,11066,11247,11292,11293,11418,11419,11420,11421,11422,11423,11424,11425,11426,11427,11428,11430,11431,12000,13000,14000,15000,16000,17000,18000,19000,20000,21000,22000,23000,24000,25000,26000,27000,28000,29000,30000,31000,32000,33000,34000,35000,36000,37000,38000,39000,40000,41000,42000,43000,44000,45000,46000,47000,48000,49000,50000);
 
-SELECT * FROM bad_images ORDER BY image_id;
-
 DELETE FROM images WHERE image_id IN
 (SELECT image_id FROM bad_images);
-
-SELECT * FROM summits s WHERE NOT EXISTS
-(SELECT image_id FROM images WHERE summit_id=s.summit_id);
 
 CREATE TABLE bad_summits
 AS TABLE summits
@@ -163,6 +151,12 @@ DELETE FROM summits WHERE summit_id IN
 ###################################################
 
 # VARIOUS SCRIPTS TO GET INFO ABOUT DATA IN DB
+
+SELECT * FROM model_fit_results WHERE model_num = (SELECT MAX(model_num) FROM model_fit_results) ORDER BY model_num DESC, time_completed;
+
+SELECT COUNT(*) "Total #summits in summits TABLE" FROM summits;
+SELECT COUNT(DISTINCT summit_id) "#Total #summits in images table" FROM images;
+SELECT COUNT(*) "Total #images in images table" FROM images;
 
 # #summits & images for Mount, Mountains, & Peaks by type
 SELECT type_str, COUNT(DISTINCT s.summit_id) "#summits", COUNT(DISTINCT i.image_id) "#images"
@@ -193,11 +187,6 @@ FROM summits
 WHERE state IN ('NM', 'UT', 'WA', 'CO')
 GROUP BY state
 ORDER BY state;
-
-SELECT s.summit_id, i.image_id, name
-FROM summits s INNER JOIN images i ON s.summit_id=i.summit_id
-WHERE name ='Baker, Mount' AND state='WA' and elevation=10781
-ORDER BY summit_id, image_id;
 
 SELECT type_str, COUNT(summit_id) "# Summits", AVG(elevation) "Avg Elev", AVG(prominence) "Avg Promin", AVG(isolation) "Avg Isol"
 FROM summits
@@ -232,25 +221,4 @@ FROM summits
 GROUP BY type_str
 ORDER BY type_str;
 
-SELECT COUNT(*) FROM images;
-
 SELECT COUNT(*) FROM summits WHERE elevation < 1000;
-SELECT COUNT(*) FROM images;
-
-SELECT EXISTS (SELECT summit_id from summits where summit_id<0);
-
-SELECT * FROM summits LIMIT 1;
-SELECT DISTINCT state FROM summits ORDER BY state;
-
-SELECT * FROM images WHERE summit_id=11;
-SELECT * FROM summits WHERE summit_id=11;
-
-SELECT * FROM summits WHERE LENGTH(state)>2;
-
-SELECT name, summit_id, elevation, isolation, prominence
-FROM summits
-WHERE
-name LIKE '%Mellenthin%' AND state='UT' OR
-name LIKE 'Grays Peak' AND state='CO' OR
-name LIKE 'Animas Peak' AND state='NM' OR
-name LIKE 'Evans, Mount' AND state='CO';
