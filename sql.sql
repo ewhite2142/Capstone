@@ -1,17 +1,17 @@
 CREATE TABLE summits (
-summit_id      int PRIMARY KEY,
-name        varchar(50),
-elevation   int,
-isolation   numeric(6,2),
-prominence  int,
-latitude    numeric(8,5),
-longitude  numeric(8,5),
-type        smallint,
-type_str    varchar(8),
-counties    varchar(50),
-states      varchar(50),
-state       char(2),
-quad        varchar(50)
+summit_id       int PRIMARY KEY,
+name            varchar(50),
+elevation       int,
+isolation       numeric(6,2),
+prominence      int,
+latitude        numeric(8,5),
+longitude       numeric(8,5),
+type            smallint,
+type_str        varchar(8),
+counties        varchar(50),
+states          varchar(50),
+state           char(2),
+quad            varchar(50)
 );
 
 
@@ -22,6 +22,12 @@ image_id    int PRIMARY KEY,
 url         varchar(50),
 filename    varchar(20)
 );
+ALTER TABLE images
+ADD CONSTRAINT images_summit_id_fkey
+FOREIGN KEY (summit_id)
+REFERENCES summits (summit_id)
+ON UPDATE CASCADE;
+
 
 CREATE TABLE model_fit_results (
 model_num               int,
@@ -44,61 +50,6 @@ num_classes             smallint,
 model_filename          varchar(50),
 PRIMARY KEY (model_num, comparison, by_type)
 );
-
-ALTER TABLE model_fit_results
-ADD COLUMN GBC_test_accuracy numeric(5, 2);
-ALTER TABLE model_fit_results
-RENAME COLUMN GBC_test_accuracy TO gbc_test_accuracy;
-
-ALTER TABLE images
-ADD CONSTRAINT images_summit_id_fkey
-FOREIGN KEY (summit_id)
-REFERENCES summits (summit_id)
-ON UPDATE CASCADE;
-
-INSERT INTO model_fit_results (test_accuracy, time_completed, compare_type, numrows_in_each_class, num_epochs, batch_size, num_filters, pool_size, kernel_size, input_shape, dense, dropout1, dropout2, num_classes) VALUES (0.35733333333333334, TIMESTAMP WITH TIME ZONE '2018-01-24 12:16:31.677598', 'by_type_GBC3', 5000, 12, 128, 32, '{3, 3}', '{4, 4}', '{100, 100, 3}', 128, 0.25, 0.25, 3);
-
-SELECT * FROM model_fit_results WHERE model_num = (SELECT MAX(model_num) FROM model_fit_results) ORDER BY model_num DESC, time_completed;
-
-SELECT COUNT(*) FROM summits WHERE state IS NULL;
-SELECT summit_id, longitude FROM summits WHERE longitude > 0;
-
-WITH imcnts AS (
-SELECT summit_id, COUNT(image_id) cnt
-FROM summits
-GROUP BY summit_id
-HAVING COUNT(image_id) = 1
-)
-SELECT m.type_str, COUNT(m.summit_id)
-FROM imcnts c INNER JOIN master m
-ON c.summit_id = m.summit_id
-GROUP BY m.type_str
-;
-
-#to count #files in a folder, from Terminal:
-find . -type f | wc -l
-
-
-ALTER TABLE summits
-ADD COLUMN counties varchar(50),
-ADD COLUMN state varchar(50);
-
-ALTER TABLE summits
-ALTER COLUMN type TYPE smallint USING TYPE::smallint;
-
-ALTER TABLE images
-RENAME COLUMN filepath TO filename;
-
-ALTER TABLE summits
-RENAME COLUMN longtitude TO longitude;
-
-SELECT COUNT(*) "Total #summits in summits TABLE" FROM summits;
-SELECT COUNT(DISTINCT summit_id) "#Total #summits in images table" FROM images;
-SELECT COUNT(*) "Total #images in images table" FROM images;
-
-SELECT s.type_str, COUNT(s.summit_id) "#summits", COUNT(i.image_id) "#images"
-FROM images i INNER JOIN summits s ON i.summit_id=s.summit_id
-GROUP BY type_str;
 
 ###### set summit type, type_str ################################
 UPDATE summits SET type=5, type_str='None';
@@ -150,14 +101,7 @@ WHERE type = 5 AND (
 UPDATE summits SET type=2, type_str='peak'
 WHERE name LIKE '%Mountaineer Peak%';
 
-SELECT summit_id, name, type_str, type FROM summits
-WHERE type_str='ambiguous';
-####################################################
-
-SELECT summit_id, name FROM summits
-WHERE name LIKE '%,%'
-ORDER BY name;
-
+# ----- to confirm above is correct ------
 SELECT COUNT(*) "num wrong Mount" FROM summits
 WHERE name LIKE '%Mount%' AND name NOT LIKE '%Mountain%' AND type_str <> 'mount';
 
@@ -173,46 +117,21 @@ WHERE
 
 SELECT COUNT(*) FROM summits
 WHERE state IS NULL OR counties IS NULL;
+####################################################
 
-#UBUNTO to take ownership of a file
-sudo chown -R ed:ed filename
+SELECT * FROM model_fit_results WHERE model_num = (SELECT MAX(model_num) FROM model_fit_results) ORDER BY model_num DESC, time_completed;
 
+SELECT COUNT(*) FROM summits WHERE state IS NULL;
+SELECT summit_id, longitude FROM summits WHERE longitude > 0;
 
-#MAC: to save table to to_csv
-#in psql, connected to summitsdb:
-COPY summits TO '/Users/edwardwhite/dsi/Capstone/summits.csv' DELIMITER ',' CSV HEADER;
-COPY summits TO '/home/ed/dsi/Capstone/summits.csv' DELIMITER ','
+SELECT COUNT(*) "Total #summits in summits TABLE" FROM summits;
+SELECT COUNT(DISTINCT summit_id) "#Total #summits in images table" FROM images;
+SELECT COUNT(*) "Total #images in images table" FROM images;
 
-#UBUNTU: to save table to to_csv
-#in psql, connected to summitsdb:
-COPY summits TO '/tmp/summits.csv' DELIMITER ',' CSV HEADER;
-in bash:
-cp '/tmp/summits.csv' '/home/ed/dsi/Capstone/'
+SELECT s.type_str, COUNT(s.summit_id) "#summits", COUNT(i.image_id) "#images"
+FROM images i INNER JOIN summits s ON i.summit_id=s.summit_id
+GROUP BY type_str;
 
-#to import csv into table in postgresql
-ALTER TABLE images DROP CONSTRAINT images_summit_id_fkey;
-DELETE FROM summits;
-COPY summits FROM '/home/ed/dsi/Capstone/summits.csv' WITH CSV HEADER DELIMITER ',';
-ALTER TABLE images ADD FOREIGN KEY(summit_id) REFERENCES summits(summit_id);
-
-#export entire DB to file. In terminal on Ubuntu:
-pg_dump -U ed -O summitsdb > 'summitsdb.sql';
-
-#import entire DB from file:
-In psql:
-DROP DATABASE IF EXISTS summitsdb;
-CREATE DATABASE summitsdb;
-In terminal on mac:
-psql -U edwardwhite summitsdb < 'summitsdb.sql';
-
--- \copy summits FROM 'path' DELIMITER ',' csv
-COPY summits FROM 'completepath' WITH HEADER, DELIMITER ',';
-
-#to get OWNER of current database:
-SELECT u.usename
-FROM pg_database d
-JOIN pg_user u ON (d.datdba = u.usesysid)
-WHERE d.datname = '(SELECT current_database())';
 
 ##################################################
 #MOVE bad images into new tables, bad_images and bad_summits
@@ -242,6 +161,8 @@ SELECT * FROM summits s WHERE NOT EXISTS
 DELETE FROM summits WHERE summit_id IN
 (SELECT summit_id from bad_summits);
 ###################################################
+
+# VARIOUS SCRIPTS TO GET INFO ABOUT DATA IN DB
 
 # #summits & images for Mount, Mountains, & Peaks by type
 SELECT type_str, COUNT(DISTINCT s.summit_id) "#summits", COUNT(DISTINCT i.image_id) "#images"
@@ -313,10 +234,8 @@ ORDER BY type_str;
 
 SELECT COUNT(*) FROM images;
 
-
 SELECT COUNT(*) FROM summits WHERE elevation < 1000;
 SELECT COUNT(*) FROM images;
-
 
 SELECT EXISTS (SELECT summit_id from summits where summit_id<0);
 
@@ -327,16 +246,6 @@ SELECT * FROM images WHERE summit_id=11;
 SELECT * FROM summits WHERE summit_id=11;
 
 SELECT * FROM summits WHERE LENGTH(state)>2;
-
-
-SELECT s.name, s.summit_id, i.image_id FROM summits s INNER JOIN images i ON s.summit_id=i.summit_id
-WHERE name='Inspiration Peak' AND state='WA';
-
-SELECT name, state, i.image_id
-FROM summits s INNER JOIN images i ON s.summit_id=i.summit_id
-WHERE s.name LIKE '%Mellenthin%';
-
-SELECT * FROM model_fit_results;
 
 SELECT name, summit_id, elevation, isolation, prominence
 FROM summits
