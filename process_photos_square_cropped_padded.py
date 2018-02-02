@@ -1,12 +1,20 @@
-import pandas as pd
+'''
+This module takes each photo file listed in summitsdb and preprocesses it for input into cnn_train.py. The preprocessing includes:
+1. reading the file using io.imread
+2. confirm the file has enough pixels so that it is not a corrupt file
+3. each image is made square by two different methods: cropping the longest side (e.g. if horizontal is longer than vertical, horizontal is cropped to vertical size), and by using zero padding on the shorter side (e.g. if horizontal is longer than vertical, the difference between the two is split in half, and an array of zeros with the horizontal width is added to the top and botton of the photo to make it square
+4. each image is downsized to 100x100x3 pixels
+5. the cropped and zero padded images, as np arrays, are saved as pickle files for later use in cnn_train.py
+
+NOTE: After experimentation, the zero padded images provided much better results than the cropped images, so ultimately only the zero padded images were used.
+'''
+
 import numpy as np
 from skimage import io
 import matplotlib.pyplot as plt
 from skimage.transform import resize
-# from PIL import Image
 import psycopg2
 import sys
-import itertools
 import pickle as pickle
 from skimage.transform import resize
 from my_libraries import *
@@ -45,8 +53,6 @@ def process_image(image):
     Process a single image for input into cnn_train.py or cnn_predict.py
     '''
     cnn_image_size = (100, 100) # Keras input image dimensions--will resize to this
-
-    # image = np.array([np.arange(26250)]).reshape(150,175) #TESTING
 
     rowsize = image.shape[0]
     colsize = image.shape[1]
@@ -114,8 +120,8 @@ if __name__ == "__main__":
     labels_type_str = []
     labels_state = []
     errors = []
-    # rownum = 0
-    # row = (16669, 1, 'CA_0_16669_1.jpg', 0, 'CA')
+
+    #loop through each image in DB
     for rownum, row in enumerate(db_data):
 
         if rownum % 100 == 0:
