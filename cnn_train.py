@@ -530,8 +530,8 @@ if __name__ == "__main__":
     # cnn_image_size contains a tuple (horizontal, vertical) representing the number of pixels in the images read in later
     # labels_state contains numpy array (strings) of all states (two letter abbreviations) corresponding to and in same order as images
     # labels_type_str contain  numpy arrays (integers) equal to either "mount", "mountain", or "peak"
-    # with open(capstone_folder + "pickled_images_labels/cnn_image_size.pkl", 'rb') as f:
-    #     cnn_image_size = pickle.load(f) # (length, width) of images
+    with open(capstone_folder + "pickled_images_labels/cnn_image_size.pkl", 'rb') as f:
+        cnn_image_size = pickle.load(f) # (length, width) of images
     print("Reading labels data...")
     with open(capstone_folder + "pickled_images_labels/labels_state.pkl", 'rb') as f:
         labels_state = pickle.load(f) #shape=(numrows)
@@ -550,7 +550,6 @@ if __name__ == "__main__":
     print("Reading {} images data...".format(image_squaring))
     # the images files are large and take several seconds to load
     fn = "pickled_images_labels/images_"
-    # print("TESTING: skipping reading images data!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
     with open(capstone_folder + fn + image_squaring + ".pkl", 'rb') as f:
         images = pickle.load(f) #shape=(numrows, cnn_image_size[0], cnn_image_size[1], 3)
@@ -584,12 +583,7 @@ if __name__ == "__main__":
     print("============= Model# {} =============".format(model_num))
 
     for run_num, run_params in enumerate(runs_params, start=1):
-        # run_params=runs_params[5]  run_num=5  #TESTING
-        # if run_num != 4: continue #TESTING
         numrows_in_each_class, by_state_or_type, labels_filter = run_params
-
-        # numrows_in_each_class = 5 # TESTING
-        # print("\n\n!!!!!!!!!!!!!!!!!!!! TESTING !!!!!!!!!!!!\n\n: numrows_in_each_class={}".format(numrows_in_each_class))
 
         print("************* {}. Running {} *************".format(run_num, run_params))
 
@@ -599,15 +593,7 @@ if __name__ == "__main__":
 
         cnn = cnn_class(model_num)
         by_state_or_type= run_params[1]
-        # cnn.run(images, by_state_or_type, labels_state, labels_type_str, *labels_filter, **params)
-
-        # TESTING
-        model_num = 1
-        print("model_num={}".format(model_num))
-        comparison = ''
-        for col_index, choice in enumerate(labels_filter):
-            comparison += choice + "_"
-        params['comparison'] = comparison[:-1] #drop last "_" from comparison
+        cnn.run(images, by_state_or_type, labels_state, labels_type_str, *labels_filter, **params)
 
         if 'gbc' not in by_state_or_type:
             print("Now running GradientBoosing on data.")
