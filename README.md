@@ -1,6 +1,6 @@
 ## **Classifying Mountains Using Neural Networks**
 
-This project attempts to classify mountains \(let's call them "summits"\) into certain categories, specifically \(i\) whether the summit is a named a "Mount", "Mountain", or "Peak", or \(ii\) which state the summit is in.
+This project attempts to use a convolutional neural network ("CNN") to classify mountains \(let's call them "summits"\) into certain categories, specifically \(i\) whether the summit is a named a "Mount", "Mountain", or "Peak", or \(ii\) which state the summit is in.
 
 Note: Slides for my Capstone presentation can be found here: [https://docs.google.com/presentation/d/1oR0iwLZyZSEdzCkZShvnvSCauiFH91rXPOSVbUvOIE0/edit?usp=sharing](https://docs.google.com/presentation/d/1oR0iwLZyZSEdzCkZShvnvSCauiFH91rXPOSVbUvOIE0/edit?usp=sharing)
 
@@ -12,7 +12,7 @@ As I am an avid hiker, I wondered if there is any convention to why some summits
 
 ![alt tag](images/Abegg_writeup.png)
 
-My idea is to see if a convolutional neural network \("CNN"\), an advanced algorithm used for classifying images, can replicate the results of the numeric regression model. While I'm at it, I thought I'd try to see the the CNN could classify the photos as to whether they are in one state or another \(e.g. Washington or New Mexico\).
+My idea is to see if a convolutional neural network, an advanced algorithm used for classifying images, can replicate the results of the numeric regression model. While I'm at it, I thought I'd try to see the the CNN could classify the photos as to whether they are in one state or another \(e.g. Washington or New Mexico\).
 
 ### Overview of Process
 
