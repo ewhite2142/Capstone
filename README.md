@@ -12,7 +12,7 @@ As I am an avid hiker, I wondered if there is any convention to why some summits
 
 ![alt tag](images/Abegg_writeup.png)
 
-My idea is to see if a convolutional neural network, an advanced algorithm used for classifying images, can replicate the results of the numeric regression model. While I'm at it, I thought I'd try to see the the CNN could classify the photos as to whether they are in one state or another \(e.g. Washington or New Mexico\).
+My idea is to see if a convolutional neural network, an advanced algorithm used for classifying images, can replicate the results of the statistical regression model. While I'm at it, I thought I'd try to see the the CNN could classify the photos as to whether they are in one state or another \(e.g. Washington or New Mexico\).
 
 ### Overview of Process
 
