@@ -64,7 +64,9 @@ Remarkably, when the CNN compared three states, CO or WA or UT, it obtained 63% 
 
 As mentioned above, the classification of mountain types by Mount, Mountain, or Peak is not a standard by any official organization, and the gradient boosting classifier had less than 60% accuracy in classifying among these three. Therefore, it is not surprising that the CNN classifier does not do any better. However, I had the idea of using the predict function of the GBC classifier to generate labels that were used for the CNN classifier--in effect renaming the summits in accordance with the elevation/isolation/prominence convention. This way, we could see if the poor performance of the CNN in comparing summit types was due to being trained and tested against inconsistent labels, or that the CNN was simply incapable of making the distinction due to insufficient information in the photos. As shown above, contrary to my expectations, using the GBC generated labels had a slightly NEGATIVE effect on the the results, suggesting the photos do not contain enough information for the CNN to distinguish among the three mountain types.
 
-If, in fact,  the elevation, isolation, and prominence of the summits determines its naming convention, then the photos would have to show this. In particular, the photos would need to show the summits with their surrounding summits nearby. A few of the photos do this, but others do not.
+If, in fact, the elevation, isolation, and prominence of the summits determine their names, then the photos would have to reflect this data. In particular, the photos would need to show the summits with their surrounding summits and saddles. Some of the photos do this, but many do not. So 'm not surpirsed at the accuracy results of the CNN, although it is notable how the CNN outperformed random guessing.
+
+However, the CNN did best in comparing states that are the most geographically separated, but not very well comparing border states.
 
 ### **Description of CNN Architecture**
 
