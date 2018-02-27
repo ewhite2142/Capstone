@@ -1,6 +1,6 @@
 ## **Classifying Mountains Using Neural Networks**
 
-This project uses a convolutional neural network ("CNN") to classify photos of mountains \(let's call them "summits"\) into certain categories, specifically \(i\) whether the summit is a named a "Mount", "Mountain", or "Peak", or \(ii\) which state the summit is in.
+This project used a convolutional neural network ("CNN") to classify photos of mountains \(let's call them "summits"\) into certain categories, specifically \(i\) whether the summit is a named a "Mount", "Mountain", or "Peak", or \(ii\) which state the summit is in.
 
 Note: Slides for my Capstone presentation can be found here: [https://docs.google.com/presentation/d/e/2PACX-1vTQ6v8FW8Ey40JEJTCDJ9BzYq7Fm6IShY5ARNgSumPIw2_-oy4MyBJIlDdQrqt4NJN1S3GBFj6FHDCR/pub?start=false&loop=false&delayms=3000](https://docs.google.com/presentation/d/e/2PACX-1vTQ6v8FW8Ey40JEJTCDJ9BzYq7Fm6IShY5ARNgSumPIw2_-oy4MyBJIlDdQrqt4NJN1S3GBFj6FHDCR/pub?start=false&loop=false&delayms=3000)
 
